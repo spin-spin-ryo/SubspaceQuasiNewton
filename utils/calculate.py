@@ -34,7 +34,7 @@ def subspace_line_search(xk,func,projected_grad,dk,Mk,alpha,beta,loss = None):
       loss = func(xk)
     lr = 1
     proj_dk = transpose(Mk,(1,0))@dk
-    while loss.item() - func(xk + lr*proj_dk) < -alpha*lr*projected_grad@dk:
+    while loss - func(xk + lr*proj_dk) < -alpha*lr*projected_grad@dk:
       lr *= beta 
     return lr
 
@@ -106,3 +106,11 @@ def get_jvp(func,x,M):
     _,directional_derivative= jvp(func,(x,),(M[i],))
     d[i] = directional_derivative
   return jnp.array(d)
+
+def clipping_eigenvalues(B,lower,upper):
+  eig_vals,eig_vecs = jnp.linalg.eigh(B)
+  eig_vals = np.array(eig_vals)
+  eig_vals[eig_vals< lower] = lower
+  eig_vals[eig_vals > upper] = upper
+  eig_vals = jnp.array(eig_vals)
+  return eig_vecs@jnp.diag(eig_vals)@eig_vecs.T
