@@ -1,4 +1,5 @@
 import time
+from jax.numpy import float64
 import numpy as np
 import jax.numpy as jnp
 from jax.lax import transpose
@@ -38,12 +39,10 @@ class optimization_solver:
         pass
       else:
         raise ValueError(f"{self.backward_mode} is not implemented.")
-      
-  
+       
   def __second_order_oracle__(self,x):
     return hessian(self.f)(x)
-    
-   
+     
   def __clear__(self):
     return
   
@@ -312,6 +311,107 @@ class LimitedMemoryNewton(optimization_solver):
     alpha = params["alpha"]
     beta = params["beta"]
     return subspace_line_search(self.xk,self.f,projected_grad=grad,dk=dk,Mk=Mk,alpha=alpha,beta=beta)
+
+class BFGS(optimization_solver):
+  def __init__(self, dtype=jnp.float64) -> None:
+    super().__init__(dtype)
+    self.params_key = [
+      "alpha",
+      "beta"
+    ]
+    self.Hk = None
+    self.gradk = None
+
+  def __run_init__(self, f, x0, iteration):
+    super().__run_init__(f, x0, iteration)
+    self.Hk = jnp.eye(x0.shape[0],dtype=x0.dtype)
+    self.gradk = self.__first_order_oracle__(x0)
+    return 
+  
+  def __direction__(self, grad):
+    return -self.Hk@grad
+  
+  def __step_size__(self, grad,dk,params):
+    alpha = params["alpha"]
+    beta = params["beta"]
+    return line_search(self.xk,self.f,grad,dk,alpha,beta)
+
+  def __iter_per__(self, params):
+    dk = self.__direction__(self.gradk)
+    s = self.__step_size__(grad=self.gradk,
+                           dk = dk,
+                           params=params)
+    self.__update__(s*dk)
+    self.update_bfgs(sk = s*dk)
+  
+  def update_bfgs(self,sk):
+    gradk1 = self.__first_order_oracle__(self.xk)
+    yk = gradk1 - self.gradk
+    a = sk@yk
+    B = jnp.dot(jnp.expand_dims(self.Hk@yk,1),jnp.expand_dims(sk,0))
+    S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
+    self.Hk = self.Hk + (a + self.Hk@yk@yk)*S/(a**2) - (B + B.T)/a
+    self.gradk = gradk1
+
+class RandomizedBFGS(optimization_solver):
+  def __init__(self, dtype=jnp.float64) -> None:
+    super().__init__(dtype)
+    self.Bk_inv = None
+    self.params_key = [
+      "reduced_dim",
+      "dim"
+    ]
+  
+  def run(self, f, x0, B0, iteration, params, save_path, log_interval=-1):
+    self.__run_init__(f,x0,B0,iteration)
+    self.__check_params__(params)
+    self.backward_mode = params["backward"]
+    start_time = time.time()
+    for i in range(iteration):
+      self.__clear__()
+      if not self.finish:
+        self.__iter_per__(params)
+      else:
+        logger.info("Stop Criterion")
+        break
+      T = time.time() - start_time
+      F = self.f(self.xk)
+      self.update_save_values(i+1,time = T,func_values = F)
+      if (i+1)%log_interval == 0 & log_interval != -1:
+        logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
+        self.save_results(save_path)
+    return
+  
+  def __run_init__(self, f, x0, B0,iteration):
+    self.Bk_inv = B0 
+    return super().__run_init__(f, x0, iteration)
+  
+  def __iter_per__(self, params):
+    reduced_dim = params["reduced_dim"]
+    dim = params["dim"]
+    grad,loss_k = self.__first_order_oracle__(self.xk,output_loss=True)
+    Hk = self.__second_order_oracle__(self.xk)
+    self.__update__(-self.Bk_inv@grad,loss_k)
+    Sk = self.generate_matrix(reduced_dim=reduced_dim,dim=dim)
+    self.update_rbfgs(Hk,Sk)
+    
+  def update_rbfgs(self,Hk,Sk):
+    dim = Hk.shape[0]
+    G = Sk@jnp.linalg.solve(Sk.T@Hk@Sk,Sk.T)
+    J = jnp.eye(dim,dtype = self.dtype) - G@Hk
+    self.Bk = G - J@self.Bk@J.T
+  
+  def __update__(self, d,loss_k):
+    xk1 = self.xk + d
+    loss_k1 = self.f(xk1)
+    if loss_k1 < loss_k:
+      self.xk = xk1
+    return    
+
+  
+  def generate_matrix(self,reduced_dim,dim):
+    return jax_randn(dim,reduced_dim,dtype=self.dtype)
+
 
 # prox(x,t):
 class BacktrackingProximalGD(optimization_solver):

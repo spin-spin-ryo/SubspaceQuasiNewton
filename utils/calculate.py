@@ -13,7 +13,7 @@ def inverse_xy(x,y):
     dim = x.shape[0]
     dtype = x.dtype
     # (I+xy^\top)^{-1}を求める.
-    return jnp.eye(dim,dtype=dtype) - (jnp.expand_dims(x,0)@jnp.expand_dims(y,1))/(1+x@y)
+    return jnp.eye(dim,dtype=dtype) - (jnp.expand_dims(x,1)@jnp.expand_dims(y,0))/(1+x@y)
 
 def get_minimum_eigenvalue(H):
     return jnp.min(jnp.linalg.eigvals(H))
