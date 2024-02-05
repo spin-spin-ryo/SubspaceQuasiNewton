@@ -5,15 +5,39 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def get_path_form_params(params:dict):
-    save_path = ""
+    save_path = ''
     for k,v in params.items():
         save_path += str(k) + DISTINCT_PARAM_VALUE + str(v) + DISTINCT_PARAMS
 
     save_path = save_path[:-1]
     return save_path
 
-def get_params_from_path(save_path):
-  return
+def get_params_from_path(save_dir_name):
+	params = save_dir_name.split(DISTINCT_PARAMS)
+	params_dict = {}
+	for param in params:
+		param_name,param_value = param.split(DISTINCT_PARAM_VALUE)
+		params_dict[param_name] = param_value
+	return params_dict
+
+def get_only_directories(path):
+	filelist = []
+	for f in os.listdir(path):
+		if os.path.isdir(os.path.join(path, f)):
+			filelist.append(f)
+	return filelist	
+
+def check_file_in_directory(file_name,dir_name):
+	for file in os.listdir(dir_name):
+		if file_name == file:
+			return True
+	return False
+
+def get_extension(path):
+	return path.split(".")[-1]
+
+def get_file_name_without_extension(path):
+	return path.split(".")[-2]
 
 def save_config(config,save_path):
 	with open(save_path,"w") as f:
@@ -30,6 +54,7 @@ def plot_results(save_path,values_dict):
 		plt.plot(np.arange(len(v)),v)
 		if k == "grad_norm":
 			plt.yscale("log")
+		plt.show(block=False)
 		plt.savefig(os.path.join(save_path,k+".png"))
 		plt.close()
 

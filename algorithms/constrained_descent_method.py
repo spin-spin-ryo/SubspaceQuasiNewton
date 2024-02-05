@@ -29,19 +29,14 @@ class constrained_optimization_solver(optimization_solver):
       T = time.time() - start_time
       F = self.f(self.xk)
       self.update_save_values(i+1,time = T,func_values = F)
-      if (i+1)%log_interval == 0 & log_interval != -1:
+      if (i+1)%log_interval == 0 and log_interval != -1:
         logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
         self.save_results(save_path)
     return
   
   def __run_init__(self, f,con, x0, iteration):
-    self.f = f
     self.con = con
-    self.xk = x0.copy()
-    self.save_values["func_values"] = np.zeros(iteration+1)
-    self.save_values["time"] = np.zeros(iteration+1)
-    self.finish = False
-    self.save_values["func_values"][0] = self.f(self.xk)
+    return super().__run_init__(f, x0, iteration)
 
 
   def evaluate_constraints_values(self,x):
@@ -136,8 +131,12 @@ class DynamicBarrierGD(constrained_optimization_solver):
     else:
       barrier_func_values = self.barrier_func(constraints_grads,constraints_values,alpha,beta,type)
       def func(l):
-        return 1/2*(grad + transpose(constraints_grads,(1,0))@l)@(grad + transpose(constraints_grads,(1,0))@l) - l@barrier_func_values
-      self.lk = self.solve_subproblem_by_APGD(func,nonnegative_projection,sub_problem_eps,inner_iteration)
+        return 1/2*(grad + constraints_grads.T@l)@(grad + constraints_grads.T@l) - l@barrier_func_values
+      self.lk = self.solve_subproblem_by_APGD(func = func,
+                                              prox = nonnegative_projection,
+                                              x0 = jnp.ones(constraints_grads.shape[0],dtype = self.dtype), 
+                                              sub_problem_eps=sub_problem_eps,
+                                              inner_iteration=inner_iteration)
 
 
 
@@ -145,11 +144,14 @@ class DynamicBarrierGD(constrained_optimization_solver):
     solver = BacktrackingAcceleratedProximalGD(dtype = self.dtype)
     params = {"restart":True,
               "beta":0.8,
-              "eps":sub_problem_eps}
+              "eps":sub_problem_eps,
+              "backward":True,
+              "alpha":1}
     solver.run(x0=x0,
                f=func,
                prox=prox,
                iteration=inner_iteration,
+               save_path="",
                params=params)
     return solver.xk
     
@@ -159,8 +161,8 @@ class DynamicBarrierGD(constrained_optimization_solver):
     beta = params["beta"]
     lr = params["lr"]
     barrier_func_type = params["barrier_func_type"]
-    sub_problem_eps = 1e-6
-    inner_iteration = 10000
+    inner_iteration = params["inner_iteration"]
+    sub_problem_eps = params["sub_problem_eps"]
     grad = self.__first_order_oracle__(self.xk)
     constraints_grads = self.evaluate_constraints_grads(self.xk)
     constraints_values = self.evaluate_constraints_values(self.xk)

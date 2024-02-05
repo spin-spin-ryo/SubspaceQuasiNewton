@@ -4,7 +4,7 @@ import numpy as np
 import jax.numpy as jnp
 from jax.lax import transpose
 from jax import grad,jit
-from utils.calculate import line_search,subspace_line_search,get_minimum_eigenvalue,hessian,jax_randn
+from utils.calculate import line_search,subspace_line_search,get_minimum_eigenvalue,hessian,jax_randn,get_jvp
 from utils.logger import logger
 import os
 from environments import FINITEDIFFERENCE,DIRECTIONALDERIVATIVE
@@ -25,28 +25,48 @@ class optimization_solver:
     return self.f(x)
 
   def __first_order_oracle__(self,x,output_loss = False):
-    if self.backward_mode:
-      x_grad = self.f_grad(x)
-      if output_loss:
-        return x_grad,self.f(x)
-      else:
-        return x_grad
-    
-    elif isinstance(self.backward_mode,str):
+    x_grad = None
+    if isinstance(self.backward_mode,str):
       if self.backward_mode == DIRECTIONALDERIVATIVE:
-        pass
+        x_grad = get_jvp(self.f,x,None)
       elif self.backward_mode == FINITEDIFFERENCE:
-        pass
+        dim = x.shape[0]
+        d = np.zeros(dim,dtype=self.dtype)
+        h = 1e-8
+        e = np.zeros(dim,dtype=x.dtype)
+        e[0] = 1
+        e = jnp.array(e)
+        z = self.f(x)
+        for i in range(dim):
+          d[i] = (self.f(x + h*e) - z)/h
+        x_grad = jnp.array(d)
       else:
         raise ValueError(f"{self.backward_mode} is not implemented.")
+    elif self.backward_mode:
+      x_grad = self.f_grad(x)
+
+    if output_loss:
+      return x_grad,self.f(x)
+    else:
+      return x_grad
        
   def __second_order_oracle__(self,x):
     return hessian(self.f)(x)
 
   def subspace_first_order_oracle(self,x,Mk):
     reduced_dim = Mk.shape[0]
-    subspace_func = lambda d:self.f(x + transpose(Mk,(1,0))@d)
-    if self.backward_mode:
+    if isinstance(self.backward_mode,str):
+      if self.backward_mode == DIRECTIONALDERIVATIVE:
+        return get_jvp(self.f,x,Mk)
+      elif self.backward_mode == FINITEDIFFERENCE:
+        d = np.zeros(reduced_dim,dtype=self.dtype)
+        h = 1e-8
+        z = self.f(x)
+        for i in range(reduced_dim):
+          d[i] = (self.f(x + h*Mk[i]) - z)/h
+        return jnp.array(d)
+    elif self.backward_mode:
+      subspace_func = lambda d:self.f(x + Mk.T@d)
       d = jnp.zeros(reduced_dim,dtype=self.dtype)
       return grad(subspace_func)(d)
   
@@ -99,7 +119,7 @@ class optimization_solver:
       T = time.time() - start_time
       F = self.f(self.xk)
       self.update_save_values(i+1,time = T,func_values = F)
-      if (i+1)%log_interval == 0 & log_interval != -1:
+      if (i+1)%log_interval == 0 and log_interval != -1:
         logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
         self.save_results(save_path)
     return
@@ -418,7 +438,8 @@ class BacktrackingProximalGD(optimization_solver):
     self.params_key = [
       "eps",
       "beta",
-      "backward"
+      "backward",
+      "alpha"
     ]
   
   def __run_init__(self, f, prox, x0, iteration):
@@ -438,14 +459,13 @@ class BacktrackingProximalGD(optimization_solver):
         break
       self.save_values["time"][i+1] = time.time() - start_time
       self.save_values["func_values"][i+1] = self.f(self.xk)
-      if (i+1)%log_interval == 0 & log_interval != -1:
+      if (i+1)%log_interval == 0 and log_interval != -1:
         logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
         self.save_results(save_path)
     return
   
 
-  def backtracking_with_prox(self,x,grad,beta,max_iter = 10000,loss = None):
-    t = 1
+  def backtracking_with_prox(self,x,grad,beta,t = 1,max_iter = 10000,loss = None):
     if loss is None:
       loss = self.f(x)
     prox_x = self.prox(x - t*grad,t)
@@ -461,8 +481,9 @@ class BacktrackingProximalGD(optimization_solver):
   def __iter_per__(self, params):
     beta = params["beta"]
     eps = params["eps"]
+    alpha = params["alpha"]
     grad,loss = self.__first_order_oracle__(self.xk,output_loss=True)
-    prox_x,t = self.backtracking_with_prox(self.xk,grad,beta,loss=loss)
+    prox_x,t = self.backtracking_with_prox(self.xk,grad,beta,t =alpha,loss=loss)
     if self.check_norm(self.xk - prox_x,t*eps):
       self.finish = True
     self.xk = prox_x.copy()     
@@ -479,8 +500,13 @@ class BacktrackingAcceleratedProximalGD(BacktrackingProximalGD):
       "restart",
       "beta",
       "eps",
-      "backward"
+      "backward",
+      "alpha"
     ]
+  
+  def run(self, f, prox, x0, iteration, params, save_path, log_interval=-1):
+    self.tk = params["alpha"]
+    return super().run(f, prox, x0, iteration, params, save_path, log_interval)
   
   def __run_init__(self,f, prox,x0,iteration):
     self.k = 0

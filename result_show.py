@@ -1,6 +1,4 @@
-import os
-from environments import RESULTPATH
-import tkinter as tk
-import tkinter.ttk as ttk
-import sys
+from widgets.window import main_window
 
+root = main_window()
+root.mainloop()
