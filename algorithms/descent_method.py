@@ -144,7 +144,8 @@ class optimization_solver:
   
   def __step_size__(self,params):
     return
-  
+
+# first order method
 class GradientDescent(optimization_solver):
   def __init__(self, dtype=jnp.float64) -> None:
     super().__init__(dtype)
@@ -227,7 +228,169 @@ class AcceleratedGD(optimization_solver):
     self.xk = (1 - gamma_k)*yk1 + gamma_k*self.yk
     self.yk = yk1
     self.lambda_k = lambda_k1
-        
+
+class BFGS(optimization_solver):
+  def __init__(self, dtype=jnp.float64) -> None:
+    super().__init__(dtype)
+    self.params_key = [
+      "alpha",
+      "beta",
+      "backward",
+      "eps"
+    ]
+    self.Hk = None
+    self.gradk = None
+
+  
+  def __run_init__(self, f, x0, iteration,params):
+    self.Hk = jnp.eye(x0.shape[0],dtype = self.dtype)
+    super().__run_init__(f, x0, iteration,params)
+    self.gradk = self.__first_order_oracle__(x0)
+    return 
+  
+  def __direction__(self, grad):
+    return -self.Hk@grad
+  
+  def __step_size__(self, grad,dk,params):
+    alpha = params["alpha"]
+    beta = params["beta"]
+    return line_search(self.xk,self.f,grad,dk,alpha,beta)
+
+  def __iter_per__(self, params):
+    dk = self.__direction__(self.gradk)
+    s = self.__step_size__(grad=self.gradk,
+                           dk = dk,
+                           params=params)
+    self.__update__(s*dk)
+    gradk1 = self.__first_order_oracle__(self.xk)
+    if self.check_norm(gradk1,params["eps"]):
+      self.finish = True
+      return
+    yk = gradk1 - self.gradk
+    self.update_BFGS(sk = s*dk,yk = yk)
+    self.gradk = gradk1
+
+  def update_BFGS(self,sk,yk):
+    # a ~ 0
+    a = sk@yk
+    if a < 1e-14:
+      self.Hk = jnp.eye(sk.shape[0],dtype = self.dtype)
+      return
+    B = jnp.dot(jnp.expand_dims(self.Hk@yk,1),jnp.expand_dims(sk,0))
+    S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
+    self.Hk = self.Hk + (a + self.Hk@yk@yk)*S/(a**2) - (B + B.T)/a
+
+# prox(x,t):
+class BacktrackingProximalGD(optimization_solver):
+  def __init__(self, dtype=jnp.float64) -> None:
+    super().__init__(dtype)
+    self.prox = None
+    self.params_key = [
+      "eps",
+      "beta",
+      "backward",
+      "alpha"
+    ]
+  
+  def __run_init__(self, f, prox, x0, iteration,params):
+    self.prox = prox
+    return super().__run_init__(f, x0, iteration,params)
+  
+  def run(self, f, prox, x0, iteration, params,save_path,log_interval=-1):
+    self.__run_init__(f,prox, x0,iteration,params)
+    self.backward_mode = params["backward"]
+    self.__check_params__(params)
+    start_time = time.time()
+    for i in range(iteration):
+      self.__clear__()
+      if not self.finish:
+        self.__iter_per__(params)
+      else:
+        break
+      self.save_values["time"][i+1] = time.time() - start_time
+      self.save_values["func_values"][i+1] = self.f(self.xk)
+      if (i+1)%log_interval == 0 and log_interval != -1:
+        logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
+        self.save_results(save_path)
+    return
+  
+
+  def backtracking_with_prox(self,x,grad,beta,t = 1,max_iter = 10000,loss = None):
+    if loss is None:
+      loss = self.f(x)
+    prox_x = self.prox(x - t*grad,t)
+    while t*self.f(prox_x) > t*loss - t*grad@(x - prox_x) + 1/2*((x-prox_x)@(x-prox_x)):
+      t *= beta
+      max_iter -= 1
+      prox_x = self.prox(x - t*grad,t)
+      if max_iter < 0:
+        logger.info("Error: Backtracking is stopped because of max_iteration.")
+        break
+    return prox_x,t
+  
+  def __iter_per__(self, params):
+    beta = params["beta"]
+    eps = params["eps"]
+    alpha = params["alpha"]
+    grad,loss = self.__first_order_oracle__(self.xk,output_loss=True)
+    prox_x,t = self.backtracking_with_prox(self.xk,grad,beta,t =alpha,loss=loss)
+    if self.check_norm(self.xk - prox_x,t*eps):
+      self.finish = True
+    self.xk = prox_x.copy()     
+    return
+
+class BacktrackingAcceleratedProximalGD(BacktrackingProximalGD):
+  def __init__(self, dtype=jnp.float64) -> None:
+    super().__init__(dtype)
+    self.tk = 1
+    self.vk = None
+    self.k = 0
+    self.xk1 = None
+    self.params_key = [
+      "restart",
+      "beta",
+      "eps",
+      "backward",
+      "alpha"
+    ]
+  
+  def run(self, f, prox, x0, iteration, params, save_path, log_interval=-1):
+    self.tk = params["alpha"]
+    return super().run(f, prox, x0, iteration, params, save_path, log_interval)
+  
+  def __run_init__(self,f, prox,x0,iteration,params):
+    self.k = 0
+    self.xk1 = x0.copy()
+    return super().__run_init__(f,prox,x0,iteration,params)
+
+  def __iter_per__(self, params):
+    self.k+=1
+    beta = params["beta"]
+    eps = params["eps"]
+    restart = params["restart"]
+    k = self.k
+    self.vk = self.xk + (k-2)/(k+1)*(self.xk - self.xk1)
+    grad_v,loss_v = self.__first_order_oracle__(self.vk,output_loss=True)
+    prox_x,t = self.backtracking_with_prox(self.xk,self.vk,grad_v,beta,loss_v)
+    if self.check_norm(prox_x - self.vk,t*eps):
+      self.finish = True
+    self.xk1 = self.xk
+    self.xk = prox_x.copy()
+    self.v = None
+    if restart:
+      if self.f(self.xk) > self.f(self.xk1):
+          self.k = 0
+
+  def backtracking_with_prox(self, x,v, grad_v, beta, max_iter=10000, loss_v=None):
+    if loss_v is None:
+      loss_v = self.f(v)
+    prox_x = self.prox(v-self.tk*grad_v,self.tk)
+    while self.tk*self.f(prox_x) > self.tk*loss_v + self.tk*grad_v@(prox_x - v) + 1/2*((prox_x - v)@(prox_x - v)):
+        self.tk *= beta
+        prox_x = self.prox(v-self.tk*grad_v,self.tk)    
+    return prox_x,self.tk
+
+# second order method      
 class NewtonMethod(optimization_solver):
   def __init__(self,  dtype=jnp.float64) -> None:
     super().__init__(dtype)
@@ -360,57 +523,6 @@ class LimitedMemoryNewton(optimization_solver):
     beta = params["beta"]
     return subspace_line_search(self.xk,self.f,projected_grad=grad,dk=dk,Mk=Mk,alpha=alpha,beta=beta)
 
-class BFGS(optimization_solver):
-  def __init__(self, dtype=jnp.float64) -> None:
-    super().__init__(dtype)
-    self.params_key = [
-      "alpha",
-      "beta",
-      "backward",
-      "eps"
-    ]
-    self.Hk = None
-    self.gradk = None
-
-  
-  def __run_init__(self, f, x0, iteration,params):
-    self.Hk = jnp.eye(x0.shape[0],dtype = self.dtype)
-    super().__run_init__(f, x0, iteration,params)
-    self.gradk = self.__first_order_oracle__(x0)
-    return 
-  
-  def __direction__(self, grad):
-    return -self.Hk@grad
-  
-  def __step_size__(self, grad,dk,params):
-    alpha = params["alpha"]
-    beta = params["beta"]
-    return line_search(self.xk,self.f,grad,dk,alpha,beta)
-
-  def __iter_per__(self, params):
-    dk = self.__direction__(self.gradk)
-    s = self.__step_size__(grad=self.gradk,
-                           dk = dk,
-                           params=params)
-    self.__update__(s*dk)
-    gradk1 = self.__first_order_oracle__(self.xk)
-    if self.check_norm(gradk1,params["eps"]):
-      self.finish = True
-      return
-    yk = gradk1 - self.gradk
-    self.update_BFGS(sk = s*dk,yk = yk)
-    self.gradk = gradk1
-
-  def update_BFGS(self,sk,yk):
-    # a ~ 0
-    a = sk@yk
-    if a < 1e-14:
-      self.Hk = jnp.eye(sk.shape[0],dtype = self.dtype)
-      return
-    B = jnp.dot(jnp.expand_dims(self.Hk@yk,1),jnp.expand_dims(sk,0))
-    S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
-    self.Hk = self.Hk + (a + self.Hk@yk@yk)*S/(a**2) - (B + B.T)/a
-    
 class RandomizedBFGS(optimization_solver):
   def __init__(self, dtype=jnp.float64) -> None:
     super().__init__(dtype)
@@ -477,112 +589,3 @@ class RandomizedBFGS(optimization_solver):
     return jax_randn(dim,reduced_dim,dtype=self.dtype)
 
 
-# prox(x,t):
-class BacktrackingProximalGD(optimization_solver):
-  def __init__(self, dtype=jnp.float64) -> None:
-    super().__init__(dtype)
-    self.prox = None
-    self.params_key = [
-      "eps",
-      "beta",
-      "backward",
-      "alpha"
-    ]
-  
-  def __run_init__(self, f, prox, x0, iteration,params):
-    self.prox = prox
-    return super().__run_init__(f, x0, iteration,params)
-  
-  def run(self, f, prox, x0, iteration, params,save_path,log_interval=-1):
-    self.__run_init__(f,prox, x0,iteration,params)
-    self.backward_mode = params["backward"]
-    self.__check_params__(params)
-    start_time = time.time()
-    for i in range(iteration):
-      self.__clear__()
-      if not self.finish:
-        self.__iter_per__(params)
-      else:
-        break
-      self.save_values["time"][i+1] = time.time() - start_time
-      self.save_values["func_values"][i+1] = self.f(self.xk)
-      if (i+1)%log_interval == 0 and log_interval != -1:
-        logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
-        self.save_results(save_path)
-    return
-  
-
-  def backtracking_with_prox(self,x,grad,beta,t = 1,max_iter = 10000,loss = None):
-    if loss is None:
-      loss = self.f(x)
-    prox_x = self.prox(x - t*grad,t)
-    while t*self.f(prox_x) > t*loss - t*grad@(x - prox_x) + 1/2*((x-prox_x)@(x-prox_x)):
-      t *= beta
-      max_iter -= 1
-      prox_x = self.prox(x - t*grad,t)
-      if max_iter < 0:
-        logger.info("Error: Backtracking is stopped because of max_iteration.")
-        break
-    return prox_x,t
-  
-  def __iter_per__(self, params):
-    beta = params["beta"]
-    eps = params["eps"]
-    alpha = params["alpha"]
-    grad,loss = self.__first_order_oracle__(self.xk,output_loss=True)
-    prox_x,t = self.backtracking_with_prox(self.xk,grad,beta,t =alpha,loss=loss)
-    if self.check_norm(self.xk - prox_x,t*eps):
-      self.finish = True
-    self.xk = prox_x.copy()     
-    return
-
-class BacktrackingAcceleratedProximalGD(BacktrackingProximalGD):
-  def __init__(self, dtype=jnp.float64) -> None:
-    super().__init__(dtype)
-    self.tk = 1
-    self.vk = None
-    self.k = 0
-    self.xk1 = None
-    self.params_key = [
-      "restart",
-      "beta",
-      "eps",
-      "backward",
-      "alpha"
-    ]
-  
-  def run(self, f, prox, x0, iteration, params, save_path, log_interval=-1):
-    self.tk = params["alpha"]
-    return super().run(f, prox, x0, iteration, params, save_path, log_interval)
-  
-  def __run_init__(self,f, prox,x0,iteration,params):
-    self.k = 0
-    self.xk1 = x0.copy()
-    return super().__run_init__(f,prox,x0,iteration,params)
-
-  def __iter_per__(self, params):
-    self.k+=1
-    beta = params["beta"]
-    eps = params["eps"]
-    restart = params["restart"]
-    k = self.k
-    self.vk = self.xk + (k-2)/(k+1)*(self.xk - self.xk1)
-    grad_v,loss_v = self.__first_order_oracle__(self.vk,output_loss=True)
-    prox_x,t = self.backtracking_with_prox(self.xk,self.vk,grad_v,beta,loss_v)
-    if self.check_norm(prox_x - self.vk,t*eps):
-      self.finish = True
-    self.xk1 = self.xk
-    self.xk = prox_x.copy()
-    self.v = None
-    if restart:
-      if self.f(self.xk) > self.f(self.xk1):
-          self.k = 0
-
-  def backtracking_with_prox(self, x,v, grad_v, beta, max_iter=10000, loss_v=None):
-    if loss_v is None:
-      loss_v = self.f(v)
-    prox_x = self.prox(v-self.tk*grad_v,self.tk)
-    while self.tk*self.f(prox_x) > self.tk*loss_v + self.tk*grad_v@(prox_x - v) + 1/2*((prox_x - v)@(prox_x - v)):
-        self.tk *= beta
-        prox_x = self.prox(v-self.tk*grad_v,self.tk)    
-    return prox_x,self.tk
