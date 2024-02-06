@@ -1,6 +1,8 @@
 from algorithms.descent_method import optimization_solver
 import jax.numpy as jnp
 from utils.calculate import subspace_line_search,jax_randn,clipping_eigenvalues
+import time
+import numpy as np
 
 class SubspaceQNM(optimization_solver):
   def __init__(self, dtype=jnp.float64) -> None:
@@ -106,12 +108,12 @@ class SubspaceQNM(optimization_solver):
       vector2 = random_projected_grad_fullsize/jnp.linalg.norm(random_projected_grad_fullsize)
     if self.Pk is None:
       self.Pk = jnp.eye(matrix_size,dim,dtype = self.dtype)
-      self.Pk.at[matrix_size-2].set(vector1)
-      self.Pk.at[matrix_size-1].set(vector2)
+      self.Pk = self.Pk.at[matrix_size-2].set(vector1)
+      self.Pk = self.Pk.at[matrix_size-1].set(vector2)
       
     else:
-      self.Pk.at[self.index].set(vector1)
-      self.Pk.at[self.index+1].set(vector2)
+      self.Pk = self.Pk.at[self.index].set(vector1)
+      self.Pk = self.Pk.at[self.index+1].set(vector2)
       self.index += 2
       self.index %= matrix_size
       
