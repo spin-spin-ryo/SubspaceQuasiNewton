@@ -13,7 +13,7 @@ def show_result_with_option(result_pathes,options):
   labeled = {}
   start = 0
   end = -1
-  mode = "best"
+  mode = "function_value"
   xscale = ""
   yscale = ""
   full_line = 100
@@ -56,8 +56,11 @@ def show_result_with_option(result_pathes,options):
                 
   for result_path in result_pathes:
     print(result_path)
-    if mode == "best":
+    if mode == "function_value":
       fvalues.append(jnp.load(os.path.join(result_path,"func_values.npy")))
+      time_values.append(jnp.load(os.path.join(result_path,"time.npy")))
+    elif mode == "grad_norm":
+      fvalues.append(jnp.load(os.path.join(result_path,"grad_norm.npy")))
       time_values.append(jnp.load(os.path.join(result_path,"time.npy")))
       
   if "time" in xscale:
@@ -70,7 +73,7 @@ def show_result_with_option(result_pathes,options):
       else:
         index = np.ones(len(t),dtype=bool)    
       # start = 0　想定
-      if "proposed" in p:
+      if "Proposed" in p:
         plt.plot(t[index][::full_line],v[index][::full_line],label = labeled[p])
       else:
         plt.plot(t[index][::full_line],v[index][::full_line],label = labeled[p],linestyle = "dotted")
@@ -79,7 +82,7 @@ def show_result_with_option(result_pathes,options):
     for index,(p,v,t) in enumerate(zip(result_pathes,fvalues,time_values)):
       nonzeroindex = t > 0
       v = v[nonzeroindex]
-      if "proposed" in p:
+      if "Proposed" in p:
         plt.plot(np.arange(len(v))[start:end][::full_line],v[start:end][::full_line],label = labeled[p])
       else:
         plt.plot(np.arange(len(v))[start:end][::full_line],v[start:end][::full_line],label = labeled[p],linestyle = "dotted")
@@ -90,7 +93,10 @@ def show_result_with_option(result_pathes,options):
     plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=1,borderaxespad=0,fontsize = LABELFONTSIZE)
   else:
     plt.legend()
-  plt.ylabel(r'$f(x)$',fontsize = LABELFONTSIZE)
+  if mode == "function_value":
+    plt.ylabel(r'$f(x)$',fontsize = LABELFONTSIZE)
+  elif mode == "grad_norm":
+    plt.ylabel(r'$\|\nabla f(x)\|$',fontsize = LABELFONTSIZE)
   if "log" in xscale:
     plt.xscale("log")
   if yscale == "log":

@@ -27,9 +27,10 @@ def open_option_window(root,option_window,option_entries):
     entry_start.insert(0,"0")
     entry_end.insert(0,"-1")
     entry_interval.insert(0,"100")
-    entry_mode.insert(0,"best")
+    entry_mode.insert(0,"function_value")
     entry_labelfontsize.insert(0,"18")
     entry_tickfontsize.insert(0,"18")
+    entry_label.insert(0,"True")
 
     
 
