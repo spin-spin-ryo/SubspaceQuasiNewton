@@ -81,7 +81,7 @@ class optimization_solver:
   def __clear__(self):
     return
   
-  def __run_init__(self,f,x0,iteration):
+  def __run_init__(self,f,x0,iteration,params):
     self.f = f
     self.f_grad = grad(self.f)
     self.xk = x0.copy()
@@ -105,7 +105,7 @@ class optimization_solver:
     return jnp.linalg.norm(d) <= eps
   
   def run(self,f,x0,iteration,params,save_path,log_interval = -1):
-    self.__run_init__(f,x0,iteration)
+    self.__run_init__(f,x0,iteration,params)
     self.__check_params__(params)
     self.backward_mode = params["backward"]
     start_time = time.time()
@@ -202,9 +202,9 @@ class AcceleratedGD(optimization_solver):
     self.params_key = ["lr",
                        "backward"]
   
-  def __run_init__(self, f, x0, iteration):
+  def __run_init__(self, f, x0, iteration,params):
     self.yk = x0.copy()
-    return super().__run_init__(f, x0, iteration)
+    return super().__run_init__(f, x0, iteration,params)
   
   def __iter_per__(self, params):
     lr = params["lr"]
@@ -347,9 +347,9 @@ class BFGS(optimization_solver):
     self.gradk = None
 
   
-  def __run_init__(self, f, x0, iteration):
+  def __run_init__(self, f, x0, iteration,params):
     self.Hk = jnp.eye(x0.shape[0],dtype = self.dtype)
-    super().__run_init__(f, x0, iteration)
+    super().__run_init__(f, x0, iteration,params)
     self.gradk = self.__first_order_oracle__(x0)
     return 
   
@@ -373,6 +373,7 @@ class BFGS(optimization_solver):
     self.gradk = gradk1
 
   def update_BFGS(self,sk,yk):
+    # a ~ 0
     a = sk@yk
     B = jnp.dot(jnp.expand_dims(self.Hk@yk,1),jnp.expand_dims(sk,0))
     S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
@@ -389,7 +390,7 @@ class RandomizedBFGS(optimization_solver):
     ]
   
   def run(self, f, x0, iteration, params, save_path, log_interval=-1):
-    self.__run_init__(f,x0,iteration)
+    self.__run_init__(f,x0,iteration,params)
     self.__check_params__(params)
     self.backward_mode = params["backward"]
     start_time = time.time()
@@ -408,9 +409,9 @@ class RandomizedBFGS(optimization_solver):
         self.save_results(save_path)
     return
   
-  def __run_init__(self, f, x0,iteration):
+  def __run_init__(self, f, x0,iteration,params):
     self.Bk_inv = jnp.eye(x0.shape[0],dtype = self.dtype)
-    return super().__run_init__(f, x0, iteration)
+    return super().__run_init__(f, x0, iteration,params)
   
   def __iter_per__(self, params):
     reduced_dim = params["reduced_dim"]
@@ -451,12 +452,12 @@ class BacktrackingProximalGD(optimization_solver):
       "alpha"
     ]
   
-  def __run_init__(self, f, prox, x0, iteration):
+  def __run_init__(self, f, prox, x0, iteration,params):
     self.prox = prox
-    return super().__run_init__(f, x0, iteration)
+    return super().__run_init__(f, x0, iteration,params)
   
   def run(self, f, prox, x0, iteration, params,save_path,log_interval=-1):
-    self.__run_init__(f,prox, x0,iteration)
+    self.__run_init__(f,prox, x0,iteration,params)
     self.backward_mode = params["backward"]
     self.__check_params__(params)
     start_time = time.time()
@@ -517,10 +518,10 @@ class BacktrackingAcceleratedProximalGD(BacktrackingProximalGD):
     self.tk = params["alpha"]
     return super().run(f, prox, x0, iteration, params, save_path, log_interval)
   
-  def __run_init__(self,f, prox,x0,iteration):
+  def __run_init__(self,f, prox,x0,iteration,params):
     self.k = 0
     self.xk1 = x0.copy()
-    return super().__run_init__(f,prox,x0,iteration)
+    return super().__run_init__(f,prox,x0,iteration,params)
 
   def __iter_per__(self, params):
     self.k+=1

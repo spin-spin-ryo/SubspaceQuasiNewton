@@ -15,7 +15,7 @@ class constrained_optimization_solver(optimization_solver):
     self.con = None
   
   def run(self, f, con, x0, iteration, params, save_path, log_interval=-1):
-    self.__run_init__(f,con, x0, iteration)
+    self.__run_init__(f,con, x0, iteration,params)
     self.__check_params__(params)
     self.backward_mode = params["backward"]
     start_time = time.time()
@@ -34,9 +34,9 @@ class constrained_optimization_solver(optimization_solver):
         self.save_results(save_path)
     return
   
-  def __run_init__(self, f,con, x0, iteration):
+  def __run_init__(self, f,con, x0, iteration,params):
     self.con = con
-    return super().__run_init__(f, x0, iteration)
+    return super().__run_init__(f, x0, iteration,params)
 
 
   def evaluate_constraints_values(self,x):
@@ -192,10 +192,10 @@ class PrimalDualInteriorPointMethod(constrained_optimization_solver):
   def get_surrogate_duality_gap(self,constraints_values):
     return - constraints_values@self.lk
   
-  def __run_init__(self, f, con, x0, iteration):
+  def __run_init__(self, f, con, x0, iteration,params):
     m = con.get_number_of_constraints()
     self.lk = jnp.ones(m,dtype = self.dtype,device = self.device)
-    return super().__run_init__(f, con, x0, iteration)
+    return super().__run_init__(f, con, x0, iteration,params)
   
   def __iter_per__(self, params):
     mu = params["mu"] # mu > 1
