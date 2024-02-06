@@ -303,25 +303,27 @@ class LimitedMemoryNewton(optimization_solver):
   def __init__(self, dtype=jnp.float64) -> None:
     super().__init__(dtype)
     self.Pk = None
+    self.index = 0
     self.params_key = [
       "reduced_dim",
       "threshold_eigenvalue",
       "alpha",
       "beta",
       "backward",
-      "mode"
+      "mode",
+      "eps"
     ]
     
   def generate_matrix(self,matrix_size,gk,mode):
     # P^\top = [x_0,\nabla f(x_0),...,x_k,\nabla f(x_k)]
+    dim = gk.shape[0]
     if mode == LEESELECTION:
       if self.Pk is None:
-        self.Pk = jnp.concatenate([jnp.expand_dims(self.xk,0),jnp.expand_dims(gk,0)])
-      else:
-        if self.Pk.shape[0] < matrix_size:
-          self.Pk = jnp.concatenate([self.Pk,jnp.expand_dims(self.xk,0),jnp.expand_dims(gk,0)])
-        else:
-          self.Pk = jnp.concatenate([self.Pk[2:],jnp.expand_dims(self.xk,0),jnp.expand_dims(gk,0)])
+        self.Pk = jnp.zeros((matrix_size,dim),dtype = self.dtype)
+      self.Pk = self.Pk.at[self.index].set(self.xk)
+      self.Pk = self.Pk.at[self.index+1].set(gk)
+      self.index+=2
+      self.index %= matrix_size
     else:
       raise ValueError(f"{mode} is not implemented.")
     
@@ -341,6 +343,9 @@ class LimitedMemoryNewton(optimization_solver):
     threshold_eigenvalue = params["threshold_eigenvalue"]
     mode = params["mode"]
     gk = self.__first_order_oracle__(self.xk)
+    if self.check_norm(gk,params["eps"]):
+      self.finish = True
+      return
     self.generate_matrix(matrix_size,gk,mode)
     proj_gk = self.Pk@gk
     Hk = self.subspace_second_order_oracle(self.xk,self.Pk,threshold_eigenvalue)
