@@ -75,9 +75,7 @@ class optimization_solver:
     d = jnp.zeros(reduced_dim,dtype = self.dtype)
     sub_func = lambda d: self.f(x +Mk.T@d)
     return hessian(sub_func)(d)
-  
-     
-  
+       
   def __clear__(self):
     return
   
@@ -90,7 +88,8 @@ class optimization_solver:
     self.save_values["grad_norm"] = np.zeros(iteration+1)
     self.finish = False
     self.save_values["func_values"][0] = self.f(self.xk)
-
+    self.save_values["grad_norm"][0] = self.f_grad(self.xk)
+    
   def __check_params__(self,params):
     all_params = True
     assert len(self.params_key) == len(params),"不要,または足りないparamがあります."
