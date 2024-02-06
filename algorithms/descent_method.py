@@ -88,7 +88,7 @@ class optimization_solver:
     self.save_values["grad_norm"] = np.zeros(iteration+1)
     self.finish = False
     self.save_values["func_values"][0] = self.f(self.xk)
-    self.save_values["grad_norm"][0] = self.f_grad(self.xk)
+    self.save_values["grad_norm"][0] = jnp.linalg.norm(self.f_grad(self.xk))
     
   def __check_params__(self,params):
     all_params = True
