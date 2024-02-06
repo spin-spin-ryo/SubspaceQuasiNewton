@@ -87,6 +87,7 @@ class optimization_solver:
     self.xk = x0.copy()
     self.save_values["func_values"] = np.zeros(iteration+1)
     self.save_values["time"] = np.zeros(iteration+1)
+    self.save_values["grad_norm"] = np.zeros(iteration+1)
     self.finish = False
     self.save_values["func_values"][0] = self.f(self.xk)
 
@@ -118,7 +119,8 @@ class optimization_solver:
         break
       T = time.time() - start_time
       F = self.f(self.xk)
-      self.update_save_values(i+1,time = T,func_values = F)
+      G = jnp.linalg.norm(self.__first_order_oracle__(self.xk))
+      self.update_save_values(i+1,time = T,func_values = F,grad_norm = G)
       if (i+1)%log_interval == 0 and log_interval != -1:
         logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
         self.save_results(save_path)
@@ -398,6 +400,8 @@ class BFGS(optimization_solver):
   def update_BFGS(self,sk,yk):
     # a ~ 0
     a = sk@yk
+    if a < 1e-14:
+      self.Hk = jnp.eye(sk.shape[0],dtype = self.dtype)  
     B = jnp.dot(jnp.expand_dims(self.Hk@yk,1),jnp.expand_dims(sk,0))
     S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
     self.Hk = self.Hk + (a + self.Hk@yk@yk)*S/(a**2) - (B + B.T)/a
@@ -427,7 +431,8 @@ class RandomizedBFGS(optimization_solver):
         break
       T = time.time() - start_time
       F = self.f(self.xk)
-      self.update_save_values(i+1,time = T,func_values = F)
+      G = self.__first_order_oracle__(self.xk)
+      self.update_save_values(i+1,time = T,func_values = F,grad_norm = G)
       if (i+1)%log_interval == 0 & log_interval != -1:
         logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
         self.save_results(save_path)
