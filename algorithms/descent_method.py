@@ -401,7 +401,8 @@ class BFGS(optimization_solver):
     # a ~ 0
     a = sk@yk
     if a < 1e-14:
-      self.Hk = jnp.eye(sk.shape[0],dtype = self.dtype)  
+      self.Hk = jnp.eye(sk.shape[0],dtype = self.dtype)
+      return
     B = jnp.dot(jnp.expand_dims(self.Hk@yk,1),jnp.expand_dims(sk,0))
     S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
     self.Hk = self.Hk + (a + self.Hk@yk@yk)*S/(a**2) - (B + B.T)/a
