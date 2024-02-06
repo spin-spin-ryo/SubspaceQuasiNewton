@@ -73,7 +73,7 @@ class optimization_solver:
   def subspace_second_order_oracle(self,x,Mk):
     reduced_dim = Mk.shape[0]
     d = jnp.zeros(reduced_dim,dtype = self.dtype)
-    sub_func = lambda d: self.f(x +Mk.transpose(0,1)@d)
+    sub_func = lambda d: self.f(x +Mk.T@d)
     return hessian(sub_func)(d)
   
      
@@ -183,7 +183,7 @@ class SubspaceGD(optimization_solver):
     self.__update__(alpha*d)
 
   def __direction__(self, projected_grad,Mk):
-    return -Mk.transpose(0,1)@projected_grad
+    return -Mk.T@projected_grad
     
   def generate_matrix(self,dim,reduced_dim,mode):
     # (dim,reduced_dim)の行列を生成
@@ -246,7 +246,9 @@ class SubspaceNewton(SubspaceGD):
     self.params_key =["dim",
                       "reduced_dim",
                       "mode",
-                      "backward"]
+                      "backward",
+                      "alpha",
+                      "beta"]
 
   def __iter_per__(self, params):
     reduced_dim = params["reduced_dim"]
@@ -257,9 +259,9 @@ class SubspaceNewton(SubspaceGD):
     H = self.subspace_second_order_oracle(self.xk,Mk)
     dk = self.__direction__(grad=grad,hess=H)
     lr = self.__step_size__(grad=grad,dk=dk,params=params,Mk=Mk)
-    self.__update__(lr*Mk.transpose(0,1)@dk)
+    self.__update__(lr*Mk.T@dk)
   
-  def __direction__(self, grad,hess,Mk):
+  def __direction__(self, grad,hess):
     return - jnp.linalg.solve(hess,grad)
     
   def __step_size__(self, grad,dk,Mk,params):
@@ -301,7 +303,7 @@ class LimitedMemoryNewton(optimization_solver):
   def subspace_second_order_oracle(self,x,Mk,threshold_eigenvalue):
     matrix_size = Mk.shape[0]
     d = jnp.zeros(matrix_size,dtype = self.dtype)
-    sub_loss = lambda d:self.f(x + Mk.transpose(0,1)@d)
+    sub_loss = lambda d:self.f(x + Mk.T@d)
     H = hessian(sub_loss)(d)
     sigma_m = get_minimum_eigenvalue(H)
     if sigma_m < threshold_eigenvalue:
@@ -316,7 +318,7 @@ class LimitedMemoryNewton(optimization_solver):
     Hk = self.subspace_second_order_oracle(self.xk,self.Pk)
     dk = self.__direction__(grad=proj_gk,hess = Hk)
     lr = self.__step_size__(grad=proj_gk,dk=dk,Mk = self.Pk,params=params)
-    self.__update__(lr*self.Pk.transpose(0,1)@dk)
+    self.__update__(lr*self.Pk.T@dk)
   
   def __direction__(self, grad,hess):
     return - jnp.linalg.solve(hess,grad)

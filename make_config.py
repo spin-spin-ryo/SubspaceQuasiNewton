@@ -1,21 +1,21 @@
 from utils.save_func import save_config
 from environments import *
 
-save_path = "config_template.json"
+save_path = "configs/config.json"
 
 # 以下設定
-objective_name = CNN
-constraints_name = BALL
-solver_name = RSG_NC
+objective_name = QUADRATIC
+constraints_name = NOCONSTRAINTS
+solver_name = GRADIENT_DESCENT
 
 # 問題関連のパラメータ
-dim = 0
-constraints_num = 100
+dim = 1000
+constraints_num = 0
 convex = False
-data_name = "mnist"
-rank = 5
-threshold1 = 12000
-threshold2 = 146000
+data_name = "random"
+rank = 0
+threshold1 = 0
+threshold2 = 0
 activation = "relu"
 criterion = "CrossEntropy"
 
@@ -23,12 +23,12 @@ layers_size = [
   (1,16,5,1),
   (16,32,5,1)
 ]
-ord = 2
-threshold = 50
+ord = 0
+threshold = 0
 
 # アルゴリズム関連のパラメータ
 backward_mode = True
-iteration = 1
+iteration = 1000
 log_interval = 1000
 eps0 = 1e-4
 delta1 = 1e-10
@@ -46,6 +46,7 @@ delta = 1e-4
 restart = True
 mu = 1.5
 eps_feas = 1e-4
+lr = 0.1
 
 config = {
   "objective":{
@@ -87,7 +88,8 @@ config = {
     "restart":restart,
     "r":r,
     "mu":mu,
-    "eps_feas":eps_feas
+    "eps_feas":eps_feas,
+    "lr":lr
   },
   "iteration":iteration,
   "log_interval":log_interval

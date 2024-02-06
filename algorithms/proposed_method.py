@@ -1,5 +1,5 @@
 from algorithms.descent_method import BFGS
-from jax.numpy import jnp
+import jax.numpy as jnp
 from utils.calculate import subspace_line_search,jax_randn,clipping_eigenvalues
 
 class SubspaceQNM(BFGS):

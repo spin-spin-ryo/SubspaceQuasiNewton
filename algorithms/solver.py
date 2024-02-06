@@ -12,6 +12,8 @@ def get_solver(solver_name,dtype):
         solver = AcceleratedGD(dtype=dtype)
     elif solver_name == NEWTON:
         solver = NewtonMethod(dtype=dtype)
+    elif solver_name == SUBSPACE_NEWTON:
+        solver = SubspaceNewton(dtype=dtype)
     elif solver_name == LIMITED_MEMORY_NEWTON:
         solver = LimitedMemoryNewton(dtype=dtype)
     elif solver_name == PROXIMAL_GRADIENT_DESCENT:
