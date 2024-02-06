@@ -148,10 +148,14 @@ class GradientDescent(optimization_solver):
   def __init__(self, dtype=jnp.float64) -> None:
     super().__init__(dtype)
     self.params_key = ["lr",
+                       "eps",
                        "backward"]
   
   def __iter_per__(self,params):
     grad = self.__first_order_oracle__(self.xk)
+    if self.check_norm(grad,params["eps"]):
+      self.finish = True
+      return
     d = self.__direction__(grad,params)
     alpha = self.__step_size__(d,params)
     self.__update__(alpha*d)
@@ -170,6 +174,7 @@ class SubspaceGD(optimization_solver):
                        "reduced_dim",
                        "dim",
                        "mode",
+                       "eps",
                        "backward"]
         
   def __iter_per__(self, params):
@@ -178,6 +183,8 @@ class SubspaceGD(optimization_solver):
     mode = params["mode"]
     Mk = self.generate_matrix(dim,reduced_dim,mode)
     projected_grad = self.subspace_first_order_oracle(self.xk,Mk)
+    if self.check_norm(projected_grad,params["eps"]):
+      self.finish = True
     d = self.__direction__(projected_grad,Mk)
     alpha = self.__step_size__(params)
     self.__update__(alpha*d)
@@ -188,7 +195,7 @@ class SubspaceGD(optimization_solver):
   def generate_matrix(self,dim,reduced_dim,mode):
     # (dim,reduced_dim)の行列を生成
     if mode == "random":
-      return jax_randn(reduced_dim,dim,dtype=self.dtype)/dim
+      return jax_randn(reduced_dim,dim,dtype=self.dtype)/(reduced_dim**0.5)
     elif mode == "identity":
       return None
     else:
@@ -200,6 +207,7 @@ class AcceleratedGD(optimization_solver):
     self.lambda_k = 0
     self.yk = None
     self.params_key = ["lr",
+                       "eps",
                        "backward"]
   
   def __run_init__(self, f, x0, iteration,params):
@@ -211,6 +219,9 @@ class AcceleratedGD(optimization_solver):
     lambda_k1 = (1 + (1 + 4*self.lambda_k**2)**(0.5))/2
     gamma_k = ( 1 - self.lambda_k)/lambda_k1
     grad = self.__first_order_oracle__(self.xk)
+    if self.check_norm(grad,params["eps"]):
+      self.finish = True
+      return
     yk1 = self.xk - lr*grad
     self.xk = (1 - gamma_k)*yk1 + gamma_k*self.yk
     self.yk = yk1
@@ -222,11 +233,15 @@ class NewtonMethod(optimization_solver):
     self.params_key = [
       "alpha",
       "beta",
+      "eps",
       "backward"
     ]
 
   def __iter_per__(self, params):
     grad = self.__first_order_oracle__(self.xk)
+    if self.check_norm(grad,params["eps"]):
+      self.finish = True
+      return
     H = self.__second_order_oracle__(self.xk)
     dk = self.__direction__(grad=grad,hess=H)
     lr = self.__step_size__(grad=grad,dk=dk,params=params)
@@ -248,7 +263,8 @@ class SubspaceNewton(SubspaceGD):
                       "mode",
                       "backward",
                       "alpha",
-                      "beta"]
+                      "beta",
+                      "eps"]
 
   def __iter_per__(self, params):
     reduced_dim = params["reduced_dim"]
@@ -256,6 +272,9 @@ class SubspaceNewton(SubspaceGD):
     mode = params["mode"]
     Mk = self.generate_matrix(dim,reduced_dim,mode)
     grad = self.subspace_first_order_oracle(self.xk,Mk)
+    if self.check_norm(grad,params["eps"]):
+      self.finish = True
+      return
     H = self.subspace_second_order_oracle(self.xk,Mk)
     dk = self.__direction__(grad=grad,hess=H)
     lr = self.__step_size__(grad=grad,dk=dk,params=params,Mk=Mk)
@@ -272,7 +291,7 @@ class SubspaceNewton(SubspaceGD):
   def generate_matrix(self,dim,reduced_dim,mode):
     # (dim,reduced_dim)の行列を生成
     if mode == "random":
-      return jax_randn(reduced_dim,dim,dtype=self.dtype)/dim
+      return jax_randn(reduced_dim,dim,dtype=self.dtype)/(reduced_dim**0.5)
     elif mode == "identity":
       return None
     else:
@@ -341,7 +360,8 @@ class BFGS(optimization_solver):
     self.params_key = [
       "alpha",
       "beta",
-      "backward"
+      "backward",
+      "eps"
     ]
     self.Hk = None
     self.gradk = None
@@ -368,6 +388,9 @@ class BFGS(optimization_solver):
                            params=params)
     self.__update__(s*dk)
     gradk1 = self.__first_order_oracle__(self.xk)
+    if self.check_norm(gradk1,params["eps"]):
+      self.finish = True
+      return
     yk = gradk1 - self.gradk
     self.update_BFGS(sk = s*dk,yk = yk)
     self.gradk = gradk1
@@ -386,7 +409,8 @@ class RandomizedBFGS(optimization_solver):
     self.params_key = [
       "reduced_dim",
       "dim",
-      "backward"
+      "backward",
+      "eps"
     ]
   
   def run(self, f, x0, iteration, params, save_path, log_interval=-1):
@@ -417,6 +441,9 @@ class RandomizedBFGS(optimization_solver):
     reduced_dim = params["reduced_dim"]
     dim = params["dim"]
     grad,loss_k = self.__first_order_oracle__(self.xk,output_loss=True)
+    if self.check_norm(grad,params["eps"]):
+      self.finish = True
+      return
     Hk = self.__second_order_oracle__(self.xk)
     self.__update__(-self.Bk_inv@grad,loss_k)
     Sk = self.generate_matrix(reduced_dim=reduced_dim,dim=dim)

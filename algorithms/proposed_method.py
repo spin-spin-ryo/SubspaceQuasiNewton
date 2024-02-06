@@ -17,7 +17,8 @@ class SubspaceQNM(optimization_solver):
       "dim",
       "backward",
       "lower_eigenvalue",
-      "upper_eigenvalue"
+      "upper_eigenvalue",
+      "eps"
     ]
   
   def __run_init__(self, f, x0, iteration,params):
@@ -65,6 +66,9 @@ class SubspaceQNM(optimization_solver):
                              reduced_dim=reduced_dim,
                              mode = "random")
     random_projected_grad = self.subspace_first_order_oracle(self.xk,Q)
+    if self.check_norm(random_projected_grad,params["eps"]):
+      self.finish = True
+      return
     self.update_Pk(matrix_size,
                    random_projected_grad,
                    Q)
@@ -73,7 +77,7 @@ class SubspaceQNM(optimization_solver):
   def generate_matrix(self,dim,reduced_dim,mode):
     # (dim,reduced_dim)の行列を生成
     if mode == "random":
-      return jax_randn(reduced_dim,dim,dtype=self.dtype)
+      return jax_randn(reduced_dim,dim,dtype=self.dtype)/(reduced_dim**0.5)
     elif mode == "identity":
       return None
     else:
