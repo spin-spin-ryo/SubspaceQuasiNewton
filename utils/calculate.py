@@ -118,6 +118,7 @@ def get_jvp(func,x,M):
       d[i] = directional_derivative
       e = jnp.roll(e,1)
     return jnp.array(d)
+  
 def clipping_eigenvalues(B,lower,upper):
   eig_vals,eig_vecs = jnp.linalg.eigh(B)
   eig_vals = np.array(eig_vals)

@@ -26,7 +26,6 @@ class SubspaceQNM(optimization_solver):
     dim = params["dim"]
     matrix_size = params["matrix_size"]
     reduced_dim = params["reduced_dim"]
-    
     self.Hk = jnp.eye(matrix_size,dtype = self.dtype)
     Q = self.generate_matrix(dim=dim,
                              reduced_dim=reduced_dim,
@@ -72,7 +71,7 @@ class SubspaceQNM(optimization_solver):
     self.update_Pk(matrix_size,
                    random_projected_grad,
                    Q)
-    self.projected_gradk = projected_gradk1
+    self.projected_gradk = self.subspace_first_order_oracle(self.xk,self.Pk)
 
   def generate_matrix(self,dim,reduced_dim,mode):
     # (dim,reduced_dim)の行列を生成
@@ -92,7 +91,6 @@ class SubspaceQNM(optimization_solver):
     S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
     self.Hk = self.Hk + (a + self.Hk@yk@yk)*S/(a**2) - (B + B.T)/a
   
-
   def update_Pk(self,matrix_size,random_projected_grad,Qk):
     dim = Qk.shape[1]
     # P^\top = [x_0/||x_0||,QTQ\nabla f(x_0)/||QTQ\nabla f(x_0)||,...,x_k/||x_k||,QTQ\nabla f(x_k)/||QTQ\nabla f(x_k)||]
