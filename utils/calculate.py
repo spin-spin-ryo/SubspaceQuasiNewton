@@ -16,10 +16,10 @@ def inverse_xy(x,y):
     return jnp.eye(dim,dtype=dtype) - (jnp.expand_dims(x,1)@jnp.expand_dims(y,0))/(1+x@y)
 
 def get_minimum_eigenvalue(H):
-    return jnp.min(jnp.linalg.eigvals(H))
+    return jnp.min(jnp.linalg.eigvalsh(H))
 
 def get_maximum_eigenvalue(H):
-    return jnp.max(jnp.linalg.eigvals(H))
+    return jnp.max(jnp.linalg.eigvalsh(H))
 
 def line_search(xk,func,grad,dk,alpha,beta,loss = None):
   if loss is None:

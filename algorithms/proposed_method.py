@@ -16,8 +16,8 @@ class SubspaceQNM(BFGS):
       "dim"
     ]
   
-  def run(self, f, x0, H0, iteration, params, save_path, log_interval=-1):
-    return super().run(f, x0, H0, iteration, params, save_path, log_interval)
+  def run(self, f, x0, iteration, params, save_path, log_interval=-1):
+    return super().run(f, x0, iteration, params, save_path, log_interval)
 
   def __direction__(self, projected_grad):
     return -self.Hk@projected_grad

@@ -26,7 +26,7 @@ def get_solver(solver_name,dtype):
         solver = DynamicBarrierGD(dtype=dtype)
     elif solver_name == PRIMALDUAL:
         solver = PrimalDualInteriorPointMethod(dtype=dtype)
-    elif solver_name == BFGS:
+    elif solver_name == BFGS_QUASI_NEWTON:
         solver = BFGS(dtype)
     elif solver_name == RANDOM_BFGS:
         solver = RandomizedBFGS(dtype)

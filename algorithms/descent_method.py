@@ -7,7 +7,7 @@ from jax import grad,jit
 from utils.calculate import line_search,subspace_line_search,get_minimum_eigenvalue,hessian,jax_randn,get_jvp
 from utils.logger import logger
 import os
-from environments import FINITEDIFFERENCE,DIRECTIONALDERIVATIVE
+from environments import FINITEDIFFERENCE,DIRECTIONALDERIVATIVE,LEESELECTION
 
 class optimization_solver:
   def __init__(self,dtype = jnp.float64) -> None:
@@ -283,23 +283,27 @@ class LimitedMemoryNewton(optimization_solver):
     super().__init__(dtype)
     self.Pk = None
     self.params_key = [
-      "matrix_size",
+      "reduced_dim",
       "threshold_eigenvalue",
       "alpha",
       "beta",
-      "backward"
+      "backward",
+      "mode"
     ]
     
-  def generate_matrix(self,matrix_size,gk):
+  def generate_matrix(self,matrix_size,gk,mode):
     # P^\top = [x_0,\nabla f(x_0),...,x_k,\nabla f(x_k)]
-    if self.Pk is None:
-      self.Pk = jnp.concatenate([jnp.expand_dims(self.xk,0),jnp.expand_dims(gk,0)])
-    else:
-      if self.Pk.shape[0] < matrix_size:
-        self.Pk = jnp.concatenate([self.Pk,jnp.expand_dims(self.xk,0),jnp.expand_dims(gk,0)])
+    if mode == LEESELECTION:
+      if self.Pk is None:
+        self.Pk = jnp.concatenate([jnp.expand_dims(self.xk,0),jnp.expand_dims(gk,0)])
       else:
-        self.Pk = jnp.concatenate([self.Pk[2:],jnp.expand_dims(self.xk,0),jnp.expand_dims(gk,0)])
-
+        if self.Pk.shape[0] < matrix_size:
+          self.Pk = jnp.concatenate([self.Pk,jnp.expand_dims(self.xk,0),jnp.expand_dims(gk,0)])
+        else:
+          self.Pk = jnp.concatenate([self.Pk[2:],jnp.expand_dims(self.xk,0),jnp.expand_dims(gk,0)])
+    else:
+      raise ValueError(f"{mode} is not implemented.")
+    
   def subspace_second_order_oracle(self,x,Mk,threshold_eigenvalue):
     matrix_size = Mk.shape[0]
     d = jnp.zeros(matrix_size,dtype = self.dtype)
@@ -312,10 +316,13 @@ class LimitedMemoryNewton(optimization_solver):
         return H                                                                                                                                                                                                                                                                                        
   
   def __iter_per__(self, params):
-    matrix_size = params["matrix_size"]
+    matrix_size = params["reduced_dim"]
     threshold_eigenvalue = params["threshold_eigenvalue"]
-    proj_gk = self.subspace_first_order_oracle(self.xk,self.Pk)
-    Hk = self.subspace_second_order_oracle(self.xk,self.Pk)
+    mode = params["mode"]
+    gk = self.__first_order_oracle__(self.xk)
+    self.generate_matrix(matrix_size,gk,mode)
+    proj_gk = self.Pk@gk
+    Hk = self.subspace_second_order_oracle(self.xk,self.Pk,threshold_eigenvalue)
     dk = self.__direction__(grad=proj_gk,hess = Hk)
     lr = self.__step_size__(grad=proj_gk,dk=dk,Mk = self.Pk,params=params)
     self.__update__(lr*self.Pk.T@dk)
@@ -333,16 +340,15 @@ class BFGS(optimization_solver):
     super().__init__(dtype)
     self.params_key = [
       "alpha",
-      "beta"
+      "beta",
+      "backward"
     ]
     self.Hk = None
     self.gradk = None
 
-  def run(self, f, x0,H0, iteration, params, save_path, log_interval=-1):
-    self.Hk = H0
-    return super().run(f, x0, iteration, params, save_path, log_interval)
-
+  
   def __run_init__(self, f, x0, iteration):
+    self.Hk = jnp.eye(x0.shape[0],dtype = self.dtype)
     super().__run_init__(f, x0, iteration)
     self.gradk = self.__first_order_oracle__(x0)
     return 
@@ -363,10 +369,10 @@ class BFGS(optimization_solver):
     self.__update__(s*dk)
     gradk1 = self.__first_order_oracle__(self.xk)
     yk = gradk1 - self.gradk
-    self.BFGS(sk = s*dk,yk = yk)
+    self.update_BFGS(sk = s*dk,yk = yk)
     self.gradk = gradk1
 
-  def BFGS(self,sk,yk):
+  def update_BFGS(self,sk,yk):
     a = sk@yk
     B = jnp.dot(jnp.expand_dims(self.Hk@yk,1),jnp.expand_dims(sk,0))
     S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
@@ -378,11 +384,12 @@ class RandomizedBFGS(optimization_solver):
     self.Bk_inv = None
     self.params_key = [
       "reduced_dim",
-      "dim"
+      "dim",
+      "backward"
     ]
   
-  def run(self, f, x0, B0, iteration, params, save_path, log_interval=-1):
-    self.__run_init__(f,x0,B0,iteration)
+  def run(self, f, x0, iteration, params, save_path, log_interval=-1):
+    self.__run_init__(f,x0,iteration)
     self.__check_params__(params)
     self.backward_mode = params["backward"]
     start_time = time.time()
@@ -401,8 +408,8 @@ class RandomizedBFGS(optimization_solver):
         self.save_results(save_path)
     return
   
-  def __run_init__(self, f, x0, B0,iteration):
-    self.Bk_inv = B0 
+  def __run_init__(self, f, x0,iteration):
+    self.Bk_inv = jnp.eye(x0.shape[0],dtype = self.dtype)
     return super().__run_init__(f, x0, iteration)
   
   def __iter_per__(self, params):
@@ -418,7 +425,7 @@ class RandomizedBFGS(optimization_solver):
     dim = Hk.shape[0]
     G = Sk@jnp.linalg.solve(Sk.T@Hk@Sk,Sk.T)
     J = jnp.eye(dim,dtype = self.dtype) - G@Hk
-    self.Bk = G - J@self.Bk@J.T
+    self.Bk_inv = G - J@self.Bk_inv@J.T
   
   def __update__(self, d,loss_k):
     xk1 = self.xk + d
