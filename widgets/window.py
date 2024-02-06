@@ -49,13 +49,16 @@ class select_objective_box:
     self.selected_objective = self.cmbbox.get()
     dirs = os.listdir(os.path.join(RESULTPATH,self.selected_objective))
     values_dict = {}
-    for param in objective_properties_key[self.selected_objective]:
-      values_dict[param] = set()
-
+    
     for dir_name in dirs:
       params_dict = get_params_from_path(dir_name)
       for k,v in params_dict.items():
-        values_dict[k].add(v)
+        try:
+          values_dict[k].add(v)
+        except KeyError:
+          values_dict[k] = set()
+          values_dict[k].add(v)
+
     
     for param in self.params_box.keys():
       self.params_box[param].destroy()
