@@ -31,13 +31,15 @@ ACCELERATED_GRADIENT_DESCENT = "AGD"
 NEWTON = "Newton"
 SUBSPACE_NEWTON = "RSNewton"
 LIMITED_MEMORY_NEWTON = "LNM"
+BFGS = "BFGS"
+RANDOM_BFGS = "RandomizedBFGS"
+SUBSPACE_QUASI_NEWTON = "Proposed"
 PROXIMAL_GRADIENT_DESCENT = "PGD"
 ACCELERATED_PROXIMAL_GRADIENT_DESCENT = "APGD"
 GRADIENT_PROJECTION = "GPD"
 DYNAMIC_BARRIER = "Dynamic"
 PRIMALDUAL = "PrimalDual"
-RSG_LC = "proposed_linear"
-RSG_NC = "proposed_nonlinear"
+
 
 # ディレクトリ名の形式 
 # results/{objectives}/{param}@{value}~{param}@{value}~..../{constraints}/{param}@{value}~{param}@{value}~..../{solver_name}/{param}@{value}~{param}@{value}

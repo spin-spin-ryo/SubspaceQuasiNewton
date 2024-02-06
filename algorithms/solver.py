@@ -26,10 +26,12 @@ def get_solver(solver_name,dtype):
         solver = DynamicBarrierGD(dtype=dtype)
     elif solver_name == PRIMALDUAL:
         solver = PrimalDualInteriorPointMethod(dtype=dtype)
-    elif solver_name == RSG_LC:
-        solver = RSGLC(dtype=dtype)
-    elif solver_name == RSG_NC:
-        solver = RSGNC(dtype=dtype)
+    elif solver_name == BFGS:
+        solver = BFGS(dtype)
+    elif solver_name == RANDOM_BFGS:
+        solver = RandomizedBFGS(dtype)
+    elif solver_name == SUBSPACE_QUASI_NEWTON:
+        solver = SubspaceQNM(dtype)
     else:
         raise ValueError(f"{solver_name} is not implemented.")
     return solver
