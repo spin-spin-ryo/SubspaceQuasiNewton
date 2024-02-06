@@ -1,8 +1,8 @@
-from algorithms.descent_method import BFGS
+from algorithms.descent_method import optimization_solver
 import jax.numpy as jnp
 from utils.calculate import subspace_line_search,jax_randn,clipping_eigenvalues
 
-class SubspaceQNM(BFGS):
+class SubspaceQNM(optimization_solver):
   def __init__(self, dtype=jnp.float64) -> None:
     super().__init__(dtype)
     self.Pk = None
@@ -77,6 +77,14 @@ class SubspaceQNM(BFGS):
       return None
     else:
       raise ValueError("No matrix mode")
+  
+  def update_BFGS(self,sk,yk):
+    # a ~ 0
+    a = sk@yk
+    B = jnp.dot(jnp.expand_dims(self.Hk@yk,1),jnp.expand_dims(sk,0))
+    S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
+    self.Hk = self.Hk + (a + self.Hk@yk@yk)*S/(a**2) - (B + B.T)/a
+  
 
   def update_Pk(self,matrix_size,random_projected_grad,Qk):
     dim = Qk.shape[1]

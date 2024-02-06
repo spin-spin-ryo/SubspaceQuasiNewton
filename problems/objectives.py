@@ -1,9 +1,11 @@
 #目的関数クラス
+from typing import Any
 import jaxlib
 import jax.numpy as jnp
 from jax import jit
 from functools import partial
 import utils.jax_layers as F
+from jax.scipy.special import logsumexp
 
 class Objective:
   def __init__(self,params):
@@ -22,7 +24,6 @@ class Objective:
       if isinstance(self.params[i],jaxlib.xla_extension.ArrayImpl):
         self.params[i] = self.params[i].astype(dtype)
     return
-  
   
 class QuadraticFunction(Objective):
   # params: [Q,b,c]
@@ -203,6 +204,58 @@ class CNNet(Objective):
       # print(z.shape,W.shape,b.shape)
       z = F.linear(z, W, bias=b)
       return self.criterion(z, self.params[1])
+
+class logistic(Objective):
+    
+  @partial(jit,static_argnums= 0)
+  def __call__(self,x):
+    # Xの最後には列には1だけのものがある
+    # yは-1,1で
+    a = self.params[0]@x[:-1] + x[-1]
+    return jnp.mean(jnp.log(1 + jnp.exp(-self.params[1]*a)))
+  
+  def get_dimension(self):
+    return self.params[0].shape[1] + 1
+
+class softmax(Objective):
+  
+  @partial(jit,static_argnums= 0)
+  def __call__(self,x,eps = 1e-12):
+    data_num,feature_num = self.params[0].shape
+    _,class_num = self.params[1].shape
+    W = x[:feature_num*class_num].reshape(class_num,feature_num)
+    b = x[feature_num*class_num:]
+    Z = self.params[0]@W.T + b
+    sum_Z = logsumexp(Z,1)
+    sum_Z = jnp.expand_dims(sum_Z,1)
+    out1 = -Z + eps + sum_Z
+    return jnp.mean(jnp.sum(out1*self.params[1],axis = 1))
+
+  def get_dimension(self):
+    _,feature_num = self.params[0].shape
+    _,class_num = self.params[1].shape
+    return feature_num*class_num + class_num
+
+class regularzed_wrapper(Objective):
+  def __init__(self,f, params):
+    self.f = f
+    assert len(params) ==3
+    self.A = params[-1]
+    self.l = params[-2]
+    self.p = params[-3]
+  
+  @partial(jit,static_argnums = 0)
+  def __call__(self, x):
+    if self.A is not None:
+      return self.f(x) + self.l*jnp.linalg.norm(self.A(x),ord = self.p)
+    else:
+      return self.f(x) + self.l*jnp.linalg.norm(x,ord = self.p)
+  
+  def set_type(self, dtype):
+    self.f.set_type(dtype)
+  
+  def get_dimension(self):
+    return self.f.get_dimension()
 
 # class Styblinsky(Objective):
 #   def __call__(self,x):

@@ -15,6 +15,9 @@ MATRIXFACTORIZATION_COMPLETION = "MatrixFactorization_Completions"
 LEASTSQUARE = "LeastSquare"
 MLPNET = "MLPNET"
 CNN = "CNN"
+SOFTMAX = "Softmax"
+LOGISTIC = "Logistic"
+REGULARIZED = "Regularized"
 
 # 制約一覧
 POLYTOPE = "Polytope"
