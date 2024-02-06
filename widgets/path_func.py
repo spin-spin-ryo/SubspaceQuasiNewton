@@ -66,6 +66,7 @@ def show_result_with_option(result_pathes,options):
   if "time" in xscale:
     for index,(p,v,t) in enumerate(zip(result_pathes,fvalues,time_values)):
       nonzeroindex = t>0
+      nonzeroindex[0] = True
       v = v[nonzeroindex]
       t = t[nonzeroindex]
       if end != -1:
