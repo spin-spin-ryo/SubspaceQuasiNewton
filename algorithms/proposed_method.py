@@ -8,6 +8,7 @@ class SubspaceQNM(optimization_solver):
     self.Pk = None
     self.Hk = None
     self.projected_gradk = None
+    self.index = 0
     self.params_key = [
       "alpha",
       "beta",
@@ -91,17 +92,23 @@ class SubspaceQNM(optimization_solver):
     # P^\top = [x_0/||x_0||,QTQ\nabla f(x_0)/||QTQ\nabla f(x_0)||,...,x_k/||x_k||,QTQ\nabla f(x_k)/||QTQ\nabla f(x_k)||]
     random_projected_grad_fullsize = Qk.T@random_projected_grad
     if jnp.linalg.norm(self.xk) < 1e-12:
-      vector1 = jnp.zeros((1,dim),dtype=self.dtype)
+      vector1 = jnp.zeros(dim,dtype=self.dtype)
     else:
-      vector1 = jnp.expand_dims(self.xk,0)/jnp.linalg.norm(self.xk)
+      vector1 = self.xk/jnp.linalg.norm(self.xk)
     
     if jnp.linalg.norm(random_projected_grad_fullsize) < 1e-12:
-      vector2 = jnp.zeros((1,dim),dtype=self.dtype)
+      vector2 = jnp.zeros(dim,dtype=self.dtype)
     else:
-      vector2 = jnp.expand_dims(random_projected_grad_fullsize ,0)/jnp.linalg.norm(random_projected_grad_fullsize)
+      vector2 = random_projected_grad_fullsize/jnp.linalg.norm(random_projected_grad_fullsize)
     if self.Pk is None:
-      self.Pk = jnp.concatenate([jnp.eye(matrix_size-2,dim,dtype = self.dtype),vector1,vector2])
+      self.Pk = jnp.eye(matrix_size,dim,dtype = self.dtype)
+      self.Pk.at[matrix_size-2].set(vector1)
+      self.Pk.at[matrix_size-1].set(vector2)
+      
     else:
-      self.Pk = jnp.concatenate([self.Pk[2:],vector1,vector2])
-
+      self.Pk.at[self.index].set(vector1)
+      self.Pk.at[self.index+1].set(vector2)
+      self.index += 2
+      self.index %= matrix_size
+      
     

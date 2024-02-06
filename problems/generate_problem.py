@@ -95,6 +95,7 @@ def generate_constraints(constraints_name, constraints_properties):
 
 def generate_initial_points(func,function_name,constraints_name,function_properties):
     dim = func.get_dimension()
+    function_name = function_name.replace(REGULARIZED,"")
     # 非負制約の時のみすべて1
     if constraints_name == NONNEGATIVE:
         x0 = jnp.ones(dim)
@@ -111,6 +112,10 @@ def generate_initial_points(func,function_name,constraints_name,function_propert
             # dim:33738
             x0 = jnp.load(os.path.join(DATAPATH,"mnist","cnn","init_param.npy"))
             return x0
+    if function_name == MATRIXFACTORIZATION_COMPLETION or function_name == MATRIXFACTORIZATION:
+        x0 = jnp.ones(dim)
+        return x0
+    
     x0 = jnp.zeros(dim)
     return x0
 

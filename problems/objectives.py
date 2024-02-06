@@ -247,9 +247,12 @@ class regularzed_wrapper(Objective):
   @partial(jit,static_argnums = 0)
   def __call__(self, x):
     if self.A is not None:
-      return self.f(x) + self.l*jnp.linalg.norm(self.A(x),ord = self.p)
+      return self.f(x) + self.l*jnp.linalg.norm(self.A(x),ord = self.p)**self.p
     else:
-      return self.f(x) + self.l*jnp.linalg.norm(x,ord = self.p)
+      if self.p == 2:
+        return self.f(x) + self.l*x@x
+      else:
+        return self.f(x) + self.l*jnp.linalg.norm(x,ord = self.p)**self.p
   
   def set_type(self, dtype):
     self.f.set_type(dtype)
