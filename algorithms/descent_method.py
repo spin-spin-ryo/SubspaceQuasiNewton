@@ -280,6 +280,89 @@ class BFGS(optimization_solver):
     S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
     self.Hk = self.Hk + (a + self.Hk@yk@yk)*S/(a**2) - (B + B.T)/a
 
+class LimitedMemoryBFGS(optimization_solver):
+  def __init__(self, dtype=jnp.float64) -> None:
+    super().__init__(dtype)
+    self.s = None
+    self.y = None
+    self.r = None
+    self.a = None
+    self.b = None
+    self.gradk = None
+    self.params_key = [
+      "alpha",
+      "beta",
+      "backward",
+      "eps",
+      "memory_size"
+    ]
+  
+  def __run_init__(self, f, x0, iteration, params):
+    super().__run_init__(f, x0, iteration, params)
+    m = params["memory_size"]
+    dim = x0.shape[0]
+    self.s = jnp.zeros((m,dim),dtype = self.dtype)
+    self.y = jnp.zeros((m,dim),dtype = self.dtype)
+    self.r = np.zeros(m,dtype = self.dtype)
+    self.a = np.zeros(m,dtype = self.dtype)
+    self.gradk = self.__first_order_oracle__(x0)
+    
+  def __direction__(self, grad):
+    g = grad
+    memory_size = self.a.shape[0]
+    param_reset = self.r[0] < 1e-14
+    for i in range(memory_size):
+      if param_reset:
+        self.r[i] = 0
+      if self.r[i] < 1e-14:
+        self.a[i] = 0
+        self.r[i] = 0
+      else:
+        self.a[i] = jnp.dot(self.s[i],g)/self.r[i]
+        g -= self.a[i]*self.y[i]
+    
+    if param_reset:
+      return - grad
+
+    gamma = jnp.dot(self.s[0],self.y[0])/jnp.dot(self.y[0],self.y[0])
+    z = gamma*g
+    for i in range(1,memory_size+1):
+      if self.r[-i] < 1e-14:
+        continue
+      else:
+        b = jnp.dot(self.y[-i],z)/self.r[-i]
+        z += self.s[-i]*(self.a[-i] - b)
+    
+    return -z
+
+  def __iter_per__(self, params):
+    dk = self.__direction__(self.gradk)
+    s = self.__step_size__(grad=self.gradk,
+                           dk = dk,
+                           params=params)
+    self.__update__(s*dk)
+    gradk1 = self.__first_order_oracle__(self.xk)
+    if self.check_norm(gradk1,params["eps"]):
+      self.finish = True
+      return
+    yk = gradk1 - self.gradk
+    self.update_BFGS(sk = s*dk,yk = yk)
+    self.gradk = gradk1
+  
+  def __step_size__(self, grad,dk,params):
+    alpha = params["alpha"]
+    beta = params["beta"]
+    return line_search(self.xk,self.f,grad,dk,alpha,beta)
+
+  def update_BFGS(self,sk,yk):
+    self.s = jnp.roll(self.s,1,axis = 0)
+    self.y = jnp.roll(self.y,1,axis=0)
+    self.r = np.array(jnp.roll(self.r,1))
+    self.s = self.s.at[0].set(sk)
+    self.y = self.y.at[0].set(yk)
+    self.r[0] = jnp.dot(sk,yk)
+
+
 # prox(x,t):
 class BacktrackingProximalGD(optimization_solver):
   def __init__(self, dtype=jnp.float64) -> None:
