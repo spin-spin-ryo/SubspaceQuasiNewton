@@ -70,6 +70,7 @@ def show_result_with_option(result_pathes,options):
       nonzeroindex[0] = True
       v = v[nonzeroindex]
       t = t[nonzeroindex]
+      t+=1
       if end != -1:
         index = t < end
       else:
@@ -87,9 +88,9 @@ def show_result_with_option(result_pathes,options):
       nonzeroindex[0] = True
       v = v[nonzeroindex]
       if "Proposed" in p:
-        plt.plot(np.arange(len(v))[start:end][::full_line],v[start:end][::full_line],label = labeled[p])
+        plt.plot(np.arange(1,len(v)+1)[start:end][::full_line],v[start:end][::full_line],label = labeled[p])
       else:
-        plt.plot(np.arange(len(v))[start:end][::full_line],v[start:end][::full_line],label = labeled[p],linestyle = "dotted")
+        plt.plot(np.arange(1,len(v)+1)[start:end][::full_line],v[start:end][::full_line],label = labeled[p],linestyle = "dotted")
     plt.xlabel("Iterations",fontsize = LABELFONTSIZE)
   
   plt.rc('font', size=TICKLABELSIZE)
