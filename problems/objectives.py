@@ -177,6 +177,7 @@ class CNNet(Objective):
     @partial(jit, static_argnums=0)
     def __call__(self,x):
       used_variables_num = 0
+      z = self.params[0]
       for input_channels,output_channels,kernel_size,bias_flag in self.params[4]:
         # (data_num,input_channnels,height,width) -> (data_num,output_channels,height + 2*padding + 1 - kernel_size, width + 2*padding + 1 - kernel_size,width)
         if bias_flag == 1:
