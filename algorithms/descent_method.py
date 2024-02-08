@@ -89,6 +89,7 @@ class optimization_solver:
     self.save_values["time"] = np.zeros(iteration+1)
     self.save_values["grad_norm"] = np.zeros(iteration+1)
     self.finish = False
+    self.backward_mode = params["backward"]
     self.check_count = 0
     self.save_values["func_values"][0] = self.f(self.xk)
     
@@ -110,9 +111,8 @@ class optimization_solver:
     return d_norm <= eps
   
   def run(self,f,x0,iteration,params,save_path,log_interval = -1):
-    self.__run_init__(f,x0,iteration,params)
     self.__check_params__(params)
-    self.backward_mode = params["backward"]
+    self.__run_init__(f,x0,iteration,params)
     start_time = time.time()
     for i in range(iteration):
       self.__clear__()
@@ -386,9 +386,8 @@ class BacktrackingProximalGD(optimization_solver):
     return super().__run_init__(f, x0, iteration,params)
   
   def run(self, f, prox, x0, iteration, params,save_path,log_interval=-1):
-    self.__run_init__(f,prox, x0,iteration,params)
-    self.backward_mode = params["backward"]
     self.__check_params__(params)
+    self.__run_init__(f,prox, x0,iteration,params)
     start_time = time.time()
     for i in range(iteration):
       self.__clear__()
