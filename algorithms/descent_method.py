@@ -17,6 +17,8 @@ class optimization_solver:
     self.dtype = dtype
     self.backward_mode = True
     self.finish = False
+    self.check_count = 0
+    self.gradk_norm = None
     self.save_values = {}
     self.params_key = {}
     pass
@@ -87,8 +89,8 @@ class optimization_solver:
     self.save_values["time"] = np.zeros(iteration+1)
     self.save_values["grad_norm"] = np.zeros(iteration+1)
     self.finish = False
+    self.check_count = 0
     self.save_values["func_values"][0] = self.f(self.xk)
-    self.save_values["grad_norm"][0] = jnp.linalg.norm(self.f_grad(self.xk))
     
   def __check_params__(self,params):
     all_params = True
@@ -102,7 +104,10 @@ class optimization_solver:
     assert all_params, "パラメータが一致しません"
   
   def check_norm(self,d,eps):
-    return jnp.linalg.norm(d) <= eps
+    d_norm = jnp.linalg.norm(d)
+    self.update_save_values(self.check_count,grad_norm = d_norm)
+    self.check_count +=1
+    return d_norm <= eps
   
   def run(self,f,x0,iteration,params,save_path,log_interval = -1):
     self.__run_init__(f,x0,iteration,params)
@@ -118,8 +123,7 @@ class optimization_solver:
         break
       T = time.time() - start_time
       F = self.f(self.xk)
-      G = jnp.linalg.norm(self.__first_order_oracle__(self.xk))
-      self.update_save_values(i+1,time = T,func_values = F,grad_norm = G)
+      self.update_save_values(i+1,time = T,func_values = F)
       if (i+1)%log_interval == 0 and log_interval != -1:
         logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
         self.save_results(save_path)
@@ -246,6 +250,7 @@ class BFGS(optimization_solver):
     self.Hk = jnp.eye(x0.shape[0],dtype = self.dtype)
     super().__run_init__(f, x0, iteration,params)
     self.gradk = self.__first_order_oracle__(x0)
+    self.check_norm(self.gradk,params["eps"])
     return 
   
   def __direction__(self, grad):
@@ -306,6 +311,7 @@ class LimitedMemoryBFGS(optimization_solver):
     self.r = np.zeros(m,dtype = self.dtype)
     self.a = np.zeros(m,dtype = self.dtype)
     self.gradk = self.__first_order_oracle__(x0)
+    self.check_norm(self.gradk,params["eps"])
     
   def __direction__(self, grad):
     g = grad

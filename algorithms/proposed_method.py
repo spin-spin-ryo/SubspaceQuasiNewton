@@ -33,6 +33,7 @@ class SubspaceQNM(optimization_solver):
                              reduced_dim=reduced_dim,
                              mode = "random")
     random_projected_grad = self.subspace_first_order_oracle(x = self.xk,Mk = Q)
+    self.check_norm(random_projected_grad,params["eps"])
     self.update_Pk(matrix_size,
                    random_projected_grad,
                    Q)
