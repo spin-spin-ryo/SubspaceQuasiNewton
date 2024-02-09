@@ -21,6 +21,7 @@ objective_properties_key ={
     CNN: ["data_name","layers_size","activation","criterion"],
     SOFTMAX:["data_name"],
     LOGISTIC:["data_name"],
+    SPARSEGAUSSIANPROCESS:["data_name","reduced_data_size","kernel_mode"],
     REGULARIZED: ["coeff","ord","Fused"]
 }
 
@@ -55,6 +56,8 @@ def generate_objective(function_name,function_properties):
         f = generate_softmax(function_properties)
     elif function_name == LOGISTIC:
         f = generate_logistic(function_properties)
+    elif function_name == SPARSEGAUSSIANPROCESS:
+        f = generate_sparse_gaussian_process(function_properties)
     else:
         raise ValueError(f"{function_name} is not implemented.")
     
@@ -312,6 +315,25 @@ def generate_logistic(properties):
     params = [X,y]
     f = logistic(params)
     return f
+
+def generate_sparse_gaussian_process(properties):
+    data_name = properties["data_name"]
+    reduced_data_size = int(properties["reduced_data_size"])
+    kernel_mode = properties["kernel_mode"]
+    if data_name == "E2006":
+        path_dataset = os.path.join(DATAPATH,"regression","E2006.train.bz2")
+        X,y = load_svmlight_file(path_dataset)
+        data_dim = X.shape[1]
+        X = BCSR.from_scipy_sparse(X)
+        y = jnp.array(y)
+    elif data_name == "ackley":
+        X = jnp.load(os.path.join(DATAPATH,"regression","ackley_X.npy"))
+        y = jnp.load(os.path.join(DATAPATH,"regression","ackley_y.npy"))
+        data_dim = 10000
+    params = [X,y,data_dim,reduced_data_size,kernel_mode]
+    f = SparseGaussianProcess(params)
+    return f
+
 
 def generate_polytope(properties):
     data_name = properties["data_name"]

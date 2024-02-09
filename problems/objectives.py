@@ -237,6 +237,45 @@ class softmax(Objective):
     _,class_num = self.params[1].shape
     return feature_num*class_num + class_num
 
+class SparseGaussianProcess(Objective):
+  # params = [(x_i,y_i),data_dim,reduced_data_size,kernel_mode]
+  def kernel_func(self,x1,x2,theta):
+    if self.params[-1] == "SquaredExponential":
+      sigma = theta[0]
+      length = theta[1]
+      A = jnp.expand_dims(x1,1) - jnp.expand_dims(x2,0)
+      return (sigma**2)*jnp.exp(-jnp.linalg.norm(A,axis = 2)**2/(2*length**2))
+  
+  def trace_diag_kernel_func(self,x1,x2,theta):
+    if self.params[-1] == "SquaredExponential":
+      assert x1.shape[0] == x2.shape[0]
+      sigma = theta[0]
+      length = theta[1]
+      return jnp.sum((sigma**2)*jnp.exp(-jnp.linalg.norm(x1-x2,axis = 1)/(2*length**2)))
+  
+  def get_dimension(self):
+    reduced_points_num = self.params[3]
+    data_dim = self.params[2]
+    return reduced_points_num*data_dim + 3
+
+  @partial(jit,static_argnums = 0)
+  def __call__(self, x) -> Any:
+    reduced_points_num = self.params[3]
+    data_dim = self.params[2]
+    data_num = self.params[0].shape[0]
+    Xm = x[:reduced_points_num*data_dim].reshape(reduced_points_num,data_dim)
+    sigma = x[reduced_points_num*data_dim]
+    Kmm = self.kernel_func(Xm,Xm,x[reduced_points_num*data_dim+1:])
+    Knm = self.kernel_func(self.params[0],Xm,x[reduced_points_num*data_dim+1:])
+    Kmnnm = Knm.T@Knm
+    Kmm_inv = jnp.linalg.inv(Kmm)
+    #|sigma^2 I_n + Knm@Kmm_inv@Knm.T| = sigma^{2n} |I_n + 1/sigma^2 * Knm@Kmm_inv@Knm.T| = sigma^{2n} |I_m + 1/sigma^2  Knm.T@Knm@Kmm_inv| = sigam^{2(n-m)}|sigma^2 I_m +Knm.T@Knm@Kmm_inv|  
+    determinant = jnp.linalg.det(sigma**2*jnp.eye(reduced_points_num,dtype = x.dtype) + Knm.T@Knm@Kmm_inv)
+    # (sigma^2 I_n + Knm@Kmm_inv@Knm.T)^{-1} = 1/sigma^2 (I_n + 1/sigma^2 Knm@Kmm_inv@Knm.T)^{-1} = 1/sigma^2 (I_n - Knm@Kmm_inv@(simga^2I_m +  Knm.T@Knm@Kmm_inv)^{-1}@Knm.T)
+    ym = self.params[1]@Knm
+    quad = 1/(sigma**2)*(jnp.linalg.norm(self.params[1])**2 + ym@Kmm_inv@jnp.linalg.inv(sigma**2 *jnp.eye(reduced_points_num,dtype=x.dtype) + Kmnnm@Kmm_inv)@ym) 
+    return -(data_num - reduced_points_num)*jnp.log(sigma) - 0.5*jnp.log(determinant) -0.5*quad - 0.5/sigma**2*(self.trace_diag_kernel_func(self.params[0],self.params[0],x[reduced_points_num*data_dim+1:]) -jnp.trace(Kmnnm@Kmm_inv))
+
 class regularzed_wrapper(Objective):
   def __init__(self,f, params):
     self.f = f
@@ -260,7 +299,7 @@ class regularzed_wrapper(Objective):
   
   def get_dimension(self):
     return self.f.get_dimension()
-
+  
 # class Styblinsky(Objective):
 #   def __call__(self,x):
 #     return 1/2*jnp.sum(x[:self.params[0]]**4 - 16*x[:self.params[0]]**2 + 5*x[:self.params[0]])

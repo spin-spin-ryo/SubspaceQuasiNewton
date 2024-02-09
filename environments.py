@@ -17,6 +17,7 @@ MLPNET = "MLPNET"
 CNN = "CNN"
 SOFTMAX = "Softmax"
 LOGISTIC = "Logistic"
+SPARSEGAUSSIANPROCESS = "SparseGaussianProcess"
 REGULARIZED = "Regularized"
 
 # 制約一覧
