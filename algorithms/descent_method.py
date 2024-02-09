@@ -194,6 +194,9 @@ class SubspaceGD(optimization_solver):
     d = self.__direction__(projected_grad,Mk)
     alpha = self.__step_size__(params)
     self.__update__(alpha*d)
+  
+  def __step_size__(self, params):
+    return params["lr"]
 
   def __direction__(self, projected_grad,Mk):
     return -Mk.T@projected_grad
