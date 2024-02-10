@@ -19,6 +19,7 @@ def show_result_with_option(result_pathes,options):
   full_line = 100
   LABELFONTSIZE = 18
   TICKLABELSIZE = 18
+  plt.figure()
   plt.rcParams["font.family"] = 'Times New Roman'
   plt.rcParams["mathtext.fontset"] = 'stix'
   plt.gca().xaxis.set_major_formatter(ScalarFormatter(useMathText=True))
