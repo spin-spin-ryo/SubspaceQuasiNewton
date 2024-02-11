@@ -20,7 +20,8 @@ class SubspaceQNM(optimization_solver):
       "backward",
       "lower_eigenvalue",
       "upper_eigenvalue",
-      "eps"
+      "eps",
+      "mode"
     ]
   
   def __run_init__(self, f, x0, iteration,params):
@@ -28,6 +29,7 @@ class SubspaceQNM(optimization_solver):
     dim = params["dim"]
     matrix_size = params["matrix_size"]
     reduced_dim = params["reduced_dim"]
+    mode = params["mode"]
     self.Hk = jnp.eye(matrix_size,dtype = self.dtype)
     Q = self.generate_matrix(dim=dim,
                              reduced_dim=reduced_dim,
@@ -36,7 +38,8 @@ class SubspaceQNM(optimization_solver):
     self.check_norm(random_projected_grad,params["eps"])
     self.update_Pk(matrix_size,
                    random_projected_grad,
-                   Q)
+                   Q,
+                   mode)
     self.projected_gradk = self.subspace_first_order_oracle(self.xk,self.Pk)
 
   def __direction__(self, projected_grad):
@@ -94,7 +97,7 @@ class SubspaceQNM(optimization_solver):
     S = jnp.dot(jnp.expand_dims(sk,1),jnp.expand_dims(sk,0))
     self.Hk = self.Hk + (a + self.Hk@yk@yk)*S/(a**2) - (B + B.T)/a
   
-  def update_Pk(self,matrix_size,random_projected_grad,Qk):
+  def update_Pk(self,matrix_size,random_projected_grad,Qk,mode = "Identity"):
     dim = Qk.shape[1]
     # P^\top = [x_0/||x_0||,QTQ\nabla f(x_0)/||QTQ\nabla f(x_0)||,...,x_k/||x_k||,QTQ\nabla f(x_k)/||QTQ\nabla f(x_k)||]
     random_projected_grad_fullsize = Qk.T@random_projected_grad
@@ -108,7 +111,10 @@ class SubspaceQNM(optimization_solver):
     else:
       vector2 = random_projected_grad_fullsize/jnp.linalg.norm(random_projected_grad_fullsize)
     if self.Pk is None:
-      self.Pk = jnp.eye(matrix_size,dim,dtype = self.dtype)
+      if mode == "Identity":
+        self.Pk = jnp.eye(matrix_size,dim,dtype = self.dtype)
+      elif mode == "random":
+        self.Pk = jax_randn(matrix_size,dim,dtype=self.dtype)/(dim**0.5)
       self.Pk = self.Pk.at[matrix_size-2].set(vector1)
       self.Pk = self.Pk.at[matrix_size-1].set(vector2)
       
