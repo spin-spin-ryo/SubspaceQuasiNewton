@@ -27,6 +27,8 @@ def line_search(xk,func,grad,dk,alpha,beta,loss = None):
   lr = 1
   while loss - func(xk + lr*dk) < -alpha*lr*grad@dk:
     lr *= beta 
+    if lr < 1e-12:
+      return 0
   return lr
 
 def subspace_line_search(xk,func,projected_grad,dk,Mk,alpha,beta,loss = None):
@@ -35,7 +37,9 @@ def subspace_line_search(xk,func,projected_grad,dk,Mk,alpha,beta,loss = None):
     lr = 1
     proj_dk = transpose(Mk,(1,0))@dk
     while loss - func(xk + lr*proj_dk) < -alpha*lr*projected_grad@dk:
-      lr *= beta 
+      lr *= beta
+      if lr < 1e-12:
+        return 0 
     return lr
 
 def generate_semidefinite(dim,rank):
