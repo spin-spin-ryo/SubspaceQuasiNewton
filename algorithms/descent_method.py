@@ -119,7 +119,7 @@ class optimization_solver:
     for i in range(iteration):
       self.__clear__()
       if not self.finish:
-        self.__iter_per__(params)
+        self.__iter_per__()
       else:
         logger.info("Stop Criterion")
         break
@@ -166,7 +166,7 @@ class GradientDescent(optimization_solver):
       self.finish = True
       return
     d = self.__direction__(grad)
-    alpha = self.__step_size__(d)
+    alpha = self.__step_size__(d,grad)
     self.__update__(alpha*d)
     return
   
@@ -205,22 +205,24 @@ class SubspaceGD(optimization_solver):
       self.finish = True
     d = self.__direction__(projected_grad,Mk)
     alpha = self.__step_size__(direction=d,
-                            projected_grad=projected_grad)
-    self.__update__(alpha*d)
+                            projected_grad=projected_grad,
+                            Mk = Mk)
+    self.__update__(alpha*Mk.T@d)
   
-  def __step_size__(self,direction,projected_grad):
+  def __step_size__(self,direction,projected_grad,Mk):
     if self.params["linesearch"]:
       return subspace_line_search(xk = self.xk,
                                   func = self.f,
                                   projected_grad=projected_grad,
                                   dk = direction,
+                                  Mk = Mk,
                                   alpha = 0.3,
                                   beta = 0.8)
     else:
       return self.params["lr"]
 
   def __direction__(self, projected_grad,Mk):
-    return -Mk.T@projected_grad
+    return -projected_grad
     
   def generate_matrix(self,dim,reduced_dim,mode):
     # (dim,reduced_dim)の行列を生成
@@ -407,7 +409,7 @@ class AcceleratedGDRestart(optimization_solver):
     self.grad_xk = None
     self.grad_yk = None
     self.initial_loss = None
-    self.params_key = ["L","M","alpha","beta"]
+    self.params_key = ["L","M","alpha","beta","backward"]
 
   def __run_init__(self, f, x0, iteration,params):
     super().__run_init__(f, x0, iteration,params)
@@ -415,6 +417,9 @@ class AcceleratedGDRestart(optimization_solver):
     self.k = 0
     self.L = self.params["L"]
     self.Sk = 0
+    self.Mk = self.params["M"]
+    self.grad_xk = self.__first_order_oracle__(self.xk)
+    self.grad_yk = self.grad_xk.copy()
     self.initial_loss = self.save_values["func_values"][0]
   
   def update_Sk(self,xk1,xk):
@@ -427,7 +432,7 @@ class AcceleratedGDRestart(optimization_solver):
     self.update_Sk(xk1,self.xk)
     grad_xk1,loss_xk1 = self.__first_order_oracle__(xk1,output_loss=True)
     if loss_xk1 > self.initial_loss - self.L*self.Sk/(2*(self.k + 1)):
-      self.restart(self.xk,self.params["alpha"]*self.L,grad_x0 = self.grad_xk,grad_y0 = self.grad_yk)
+      self.restart_iter(self.xk,self.params["alpha"]*self.L,grad_x0 = self.grad_xk,grad_y0 = self.grad_yk)
       return
     
     grad_yk1,loss_yk1 = self.__first_order_oracle__(yk1,output_loss=True)
@@ -441,7 +446,7 @@ class AcceleratedGDRestart(optimization_solver):
                    yk1 = yk1,
                    theta_k = self.k/(self.k + 1))
     if (self.k+1)**5 * self.Mk**2 * self.Sk > self.L**2:
-      self.restart(xk1,self.parmas["beta"]*self.L,grad_x0 = grad_xk1,grad_y0 = grad_yk1)
+      self.restart_iter(xk1,self.params["beta"]*self.L,grad_x0 = grad_xk1,grad_y0 = grad_yk1)
       return
     self.xk = xk1
     self.yk = yk1
