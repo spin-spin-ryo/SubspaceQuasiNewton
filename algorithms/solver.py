@@ -10,6 +10,8 @@ def get_solver(solver_name,dtype):
         solver = SubspaceGD(dtype=dtype)
     elif solver_name == ACCELERATED_GRADIENT_DESCENT:
         solver = AcceleratedGD(dtype=dtype)
+    elif solver_name == MARUMO_AGD:
+        solver = AcceleratedGDRestart(dtype = dtype)
     elif solver_name == NEWTON:
         solver = NewtonMethod(dtype=dtype)
     elif solver_name == SUBSPACE_NEWTON:
