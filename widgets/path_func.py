@@ -53,7 +53,14 @@ def show_result_with_option(result_pathes,options):
       for result_path in result_pathes:
         if v:
           solver_name = result_path.split(SLASH)[-2]
-          labeled[result_path] = solver_name
+          param_dir = result_path.split(SLASH)[-1]
+          param_dict = get_params_from_path(param_dir)
+          if solver_name == "Proposed":
+            matrix_size = param_dict["matrix_size"]
+            reduced_dim = param_dict["reduced_dim"]
+            labeled[result_path] = solver_name+r"$(d = {}, m = {})$".format(reduced_dim,matrix_size)
+          else:
+            labeled[result_path] = solver_name
                 
   for result_path in result_pathes:
     print(result_path)

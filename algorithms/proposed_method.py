@@ -45,24 +45,23 @@ class SubspaceQNM(optimization_solver):
   def __direction__(self, projected_grad):
     return -self.Hk@projected_grad
   
-  def __step_size__(self, projected_grad,dk,Mk,params):
-    alpha = params["alpha"]
-    beta = params["beta"]
+  def __step_size__(self, projected_grad,dk,Mk):
+    alpha = self.params["alpha"]
+    beta = self.params["beta"]
     return subspace_line_search(self.xk,self.f,projected_grad=projected_grad,dk=dk,Mk=Mk,alpha=alpha,beta=beta)
   
 
-  def __iter_per__(self, params):
-    reduced_dim = params["reduced_dim"]
-    dim = params["dim"]
-    lower_eigenvalue = params["lower_eigenvalue"]
-    upper_eigenvalue = params["upper_eigenvalue"]
-    matrix_size = params["matrix_size"]
+  def __iter_per__(self):
+    reduced_dim = self.params["reduced_dim"]
+    dim = self.params["dim"]
+    lower_eigenvalue = self.params["lower_eigenvalue"]
+    upper_eigenvalue = self.params["upper_eigenvalue"]
+    matrix_size = self.params["matrix_size"]
     
     dk = self.__direction__(self.projected_gradk)
     s = self.__step_size__(projected_grad=self.projected_gradk,
                            dk=dk,
-                           Mk = self.Pk,
-                           params=params)
+                           Mk = self.Pk)
     self.__update__(s*self.Pk.T@dk)
     projected_gradk1 = self.subspace_first_order_oracle(self.xk,self.Pk)
     self.update_BFGS(sk = s*dk,yk = projected_gradk1 - self.projected_gradk)
@@ -71,7 +70,7 @@ class SubspaceQNM(optimization_solver):
                              reduced_dim=reduced_dim,
                              mode = "random")
     random_projected_grad = self.subspace_first_order_oracle(self.xk,Q)
-    if self.check_norm(random_projected_grad,params["eps"]):
+    if self.check_norm(random_projected_grad,self.params["eps"]):
       self.finish = True
       return
     self.update_Pk(matrix_size,

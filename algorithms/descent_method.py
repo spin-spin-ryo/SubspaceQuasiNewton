@@ -21,6 +21,7 @@ class optimization_solver:
     self.gradk_norm = None
     self.save_values = {}
     self.params_key = {}
+    self.params = {}
     pass
 
   def __zeroth_order_oracle__(self,x):
@@ -90,6 +91,7 @@ class optimization_solver:
     self.save_values["grad_norm"] = np.zeros(iteration+1)
     self.finish = False
     self.backward_mode = params["backward"]
+    self.params = params
     self.check_count = 0
     self.save_values["func_values"][0] = self.f(self.xk)
     
@@ -140,13 +142,13 @@ class optimization_solver:
   def __update__(self,d):
     self.xk += d
 
-  def __iter_per__(self,params):
+  def __iter_per__(self):
     return
 
   def __direction__(self,grad):
     return
   
-  def __step_size__(self,params):
+  def __step_size__(self):
     return
 
 # first order method
@@ -155,23 +157,32 @@ class GradientDescent(optimization_solver):
     super().__init__(dtype)
     self.params_key = ["lr",
                        "eps",
-                       "backward"]
+                       "backward",
+                       "linesearch"]
   
-  def __iter_per__(self,params):
+  def __iter_per__(self):
     grad = self.__first_order_oracle__(self.xk)
-    if self.check_norm(grad,params["eps"]):
+    if self.check_norm(grad,self.params["eps"]):
       self.finish = True
       return
-    d = self.__direction__(grad,params)
-    alpha = self.__step_size__(d,params)
+    d = self.__direction__(grad)
+    alpha = self.__step_size__(d)
     self.__update__(alpha*d)
     return
   
-  def __direction__(self,grad,params):
+  def __direction__(self,grad):
     return -grad
   
-  def __step_size__(self,direction,params):
-    return params["lr"]
+  def __step_size__(self,direction,grad):
+    if self.params["linesearch"]:
+      return line_search(xk = self.xk,
+                         func = self.f,
+                         grad = grad,
+                         dk = direction,
+                         alpha = 0.3,
+                         beta = 0.8)
+    else:
+      return self.params["lr"]
 
 class SubspaceGD(optimization_solver):
   def __init__(self, dtype=jnp.float64) -> None:
@@ -181,22 +192,32 @@ class SubspaceGD(optimization_solver):
                        "dim",
                        "mode",
                        "eps",
-                       "backward"]
+                       "backward",
+                       "linesearch"]
         
-  def __iter_per__(self, params):
-    reduced_dim = params["reduced_dim"]
-    dim = params["dim"]
-    mode = params["mode"]
+  def __iter_per__(self):
+    reduced_dim = self.params["reduced_dim"]
+    dim =  self.params["dim"]
+    mode =  self.params["mode"]
     Mk = self.generate_matrix(dim,reduced_dim,mode)
     projected_grad = self.subspace_first_order_oracle(self.xk,Mk)
-    if self.check_norm(projected_grad,params["eps"]):
+    if self.check_norm(projected_grad, self.params["eps"]):
       self.finish = True
     d = self.__direction__(projected_grad,Mk)
-    alpha = self.__step_size__(params)
+    alpha = self.__step_size__(direction=d,
+                            projected_grad=projected_grad)
     self.__update__(alpha*d)
   
-  def __step_size__(self, params):
-    return params["lr"]
+  def __step_size__(self,direction,projected_grad):
+    if self.params["linesearch"]:
+      return subspace_line_search(xk = self.xk,
+                                  func = self.f,
+                                  projected_grad=projected_grad,
+                                  dk = direction,
+                                  alpha = 0.3,
+                                  beta = 0.8)
+    else:
+      return self.params["lr"]
 
   def __direction__(self, projected_grad,Mk):
     return -Mk.T@projected_grad
@@ -217,22 +238,28 @@ class AcceleratedGD(optimization_solver):
     self.yk = None
     self.params_key = ["lr",
                        "eps",
-                       "backward"]
+                       "backward",
+                       "restart"]
   
   def __run_init__(self, f, x0, iteration,params):
     self.yk = x0.copy()
     return super().__run_init__(f, x0, iteration,params)
   
-  def __iter_per__(self, params):
-    lr = params["lr"]
+  def __iter_per__(self):
+    lr = self.params["lr"]
     lambda_k1 = (1 + (1 + 4*self.lambda_k**2)**(0.5))/2
     gamma_k = ( 1 - self.lambda_k)/lambda_k1
     grad = self.__first_order_oracle__(self.xk)
-    if self.check_norm(grad,params["eps"]):
+    if self.check_norm(grad,self.params["eps"]):
       self.finish = True
       return
     yk1 = self.xk - lr*grad
-    self.xk = (1 - gamma_k)*yk1 + gamma_k*self.yk
+    xk1 = (1 - gamma_k)*yk1 + gamma_k*self.yk
+    if self.params["restart"]:
+      if self.f(xk1) > self.f(self.xk):
+        self.lambda_k = 0
+        return
+    self.xk = xk1
     self.yk = yk1
     self.lambda_k = lambda_k1
 
@@ -259,19 +286,18 @@ class BFGS(optimization_solver):
   def __direction__(self, grad):
     return -self.Hk@grad
   
-  def __step_size__(self, grad,dk,params):
-    alpha = params["alpha"]
-    beta = params["beta"]
+  def __step_size__(self, grad,dk):
+    alpha = self.params["alpha"]
+    beta = self.params["beta"]
     return line_search(self.xk,self.f,grad,dk,alpha,beta)
 
-  def __iter_per__(self, params):
+  def __iter_per__(self):
     dk = self.__direction__(self.gradk)
     s = self.__step_size__(grad=self.gradk,
-                           dk = dk,
-                           params=params)
+                           dk = dk)
     self.__update__(s*dk)
     gradk1 = self.__first_order_oracle__(self.xk)
-    if self.check_norm(gradk1,params["eps"]):
+    if self.check_norm(gradk1,self.params["eps"]):
       self.finish = True
       return
     yk = gradk1 - self.gradk
@@ -344,23 +370,22 @@ class LimitedMemoryBFGS(optimization_solver):
     
     return -z
 
-  def __iter_per__(self, params):
+  def __iter_per__(self):
     dk = self.__direction__(self.gradk)
     s = self.__step_size__(grad=self.gradk,
-                           dk = dk,
-                           params=params)
+                           dk = dk)
     self.__update__(s*dk)
     gradk1 = self.__first_order_oracle__(self.xk)
-    if self.check_norm(gradk1,params["eps"]):
+    if self.check_norm(gradk1,self.params["eps"]):
       self.finish = True
       return
     yk = gradk1 - self.gradk
     self.update_BFGS(sk = s*dk,yk = yk)
     self.gradk = gradk1
   
-  def __step_size__(self, grad,dk,params):
-    alpha = params["alpha"]
-    beta = params["beta"]
+  def __step_size__(self, grad,dk):
+    alpha = self.params["alpha"]
+    beta = self.params["beta"]
     return line_search(self.xk,self.f,grad,dk,alpha,beta)
 
   def update_BFGS(self,sk,yk):
@@ -371,6 +396,71 @@ class LimitedMemoryBFGS(optimization_solver):
     self.y = self.y.at[0].set(yk)
     self.r[0] = jnp.dot(sk,yk)
 
+class AcceleratedGDRestart(optimization_solver):
+  def __init__(self, dtype=jnp.float64) -> None:
+    super().__init__(dtype)
+    self.k = 0
+    self.K = 0
+    self.L = 0
+    self.Sk = 0
+    self.yk = None
+    self.grad_xk = None
+    self.grad_yk = None
+    self.initial_loss = None
+    self.params_key = ["L","M","alpha","beta"]
+
+  def __run_init__(self, f, x0, iteration,params):
+    super().__run_init__(f, x0, iteration,params)
+    self.yk = x0.copy()
+    self.k = 0
+    self.L = self.params["L"]
+    self.Sk = 0
+    self.initial_loss = self.save_values["func_values"][0]
+  
+  def update_Sk(self,xk1,xk):
+    self.Sk += jnp.linalg.norm(xk1 - xk)**2
+  
+  def __iter_per__(self):
+    self.k+=1
+    xk1 = self.yk - self.grad_yk/self.L
+    yk1 = self.xk + self.k/(self.k+1)*(xk1 - self.xk)
+    self.update_Sk(xk1,self.xk)
+    grad_xk1,loss_xk1 = self.__first_order_oracle__(xk1,output_loss=True)
+    if loss_xk1 > self.initial_loss - self.L*self.Sk/(2*(self.k + 1)):
+      self.restart(self.xk,self.params["alpha"]*self.L,grad_x0 = self.grad_xk,grad_y0 = self.grad_yk)
+      return
+    
+    grad_yk1,loss_yk1 = self.__first_order_oracle__(yk1,output_loss=True)
+    self.update_Mk(loss_xk1=loss_xk1,
+                   loss_yk1=loss_yk1,
+                   grad_yk1=grad_yk1,
+                   grad_xk1=grad_xk1,
+                   grad_xk=self.grad_xk,
+                   xk1 = xk1,
+                   xk = self.xk,
+                   yk1 = yk1,
+                   theta_k = self.k/(self.k + 1))
+    if (self.k+1)**5 * self.Mk**2 * self.Sk > self.L**2:
+      self.restart(xk1,self.parmas["beta"]*self.L,grad_x0 = grad_xk1,grad_y0 = grad_yk1)
+      return
+    self.xk = xk1
+    self.yk = yk1
+    self.grad_xk = grad_xk1
+    self.grad_yk = grad_yk1
+  
+  def update_Mk(self,loss_xk1,loss_yk1,grad_yk1,grad_xk1,grad_xk,xk1,xk,yk1,theta_k):
+    a = 12*(loss_yk1 - loss_xk1 - 0.5*jnp.dot(grad_yk1 + grad_xk1,yk1 -xk1))/ ( jnp.linalg.norm(yk1 - xk1)**3 )
+    b = jnp.linalg.norm(grad_yk1 + theta_k*grad_xk - (1+ theta_k)*grad_xk1)/(theta_k*jnp.linalg.norm(xk1 - xk)**2)
+    self.Mk = max(self.Mk,a,b)
+
+  def restart_iter(self,x0,L,grad_x0,grad_y0):
+    self.xk = x0.copy()
+    self.yk = x0.copy()
+    self.L = L
+    self.k = 0
+    self.grad_yk = grad_y0
+    self.grad_xk = grad_x0
+    
 
 # prox(x,t):
 class BacktrackingProximalGD(optimization_solver):
@@ -395,7 +485,7 @@ class BacktrackingProximalGD(optimization_solver):
     for i in range(iteration):
       self.__clear__()
       if not self.finish:
-        self.__iter_per__(params)
+        self.__iter_per__()
       else:
         break
       self.save_values["time"][i+1] = time.time() - start_time
@@ -419,10 +509,10 @@ class BacktrackingProximalGD(optimization_solver):
         break
     return prox_x,t
   
-  def __iter_per__(self, params):
-    beta = params["beta"]
-    eps = params["eps"]
-    alpha = params["alpha"]
+  def __iter_per__(self):
+    beta = self.params["beta"]
+    eps = self.params["eps"]
+    alpha = self.params["alpha"]
     grad,loss = self.__first_order_oracle__(self.xk,output_loss=True)
     prox_x,t = self.backtracking_with_prox(self.xk,grad,beta,t =alpha,loss=loss)
     if self.check_norm(self.xk - prox_x,t*eps):
@@ -454,11 +544,11 @@ class BacktrackingAcceleratedProximalGD(BacktrackingProximalGD):
     self.xk1 = x0.copy()
     return super().__run_init__(f,prox,x0,iteration,params)
 
-  def __iter_per__(self, params):
+  def __iter_per__(self):
     self.k+=1
-    beta = params["beta"]
-    eps = params["eps"]
-    restart = params["restart"]
+    beta = self.params["beta"]
+    eps = self.params["eps"]
+    restart = self.params["restart"]
     k = self.k
     self.vk = self.xk + (k-2)/(k+1)*(self.xk - self.xk1)
     grad_v,loss_v = self.__first_order_oracle__(self.vk,output_loss=True)
@@ -492,22 +582,22 @@ class NewtonMethod(optimization_solver):
       "backward"
     ]
 
-  def __iter_per__(self, params):
+  def __iter_per__(self):
     grad = self.__first_order_oracle__(self.xk)
-    if self.check_norm(grad,params["eps"]):
+    if self.check_norm(grad,self.params["eps"]):
       self.finish = True
       return
     H = self.__second_order_oracle__(self.xk)
     dk = self.__direction__(grad=grad,hess=H)
-    lr = self.__step_size__(grad=grad,dk=dk,params=params)
+    lr = self.__step_size__(grad=grad,dk=dk)
     self.__update__(lr*dk)
         
   def __direction__(self, grad,hess):
     return - jnp.linalg.solve(hess,grad)
     
-  def __step_size__(self, grad,dk,params):
-    alpha = params["alpha"]
-    beta = params["beta"]
+  def __step_size__(self, grad,dk):
+    alpha = self.params["alpha"]
+    beta = self.params["beta"]
     return line_search(self.xk,self.f,grad,dk,alpha,beta)
 
 class SubspaceNewton(SubspaceGD):
@@ -521,26 +611,26 @@ class SubspaceNewton(SubspaceGD):
                       "beta",
                       "eps"]
 
-  def __iter_per__(self, params):
-    reduced_dim = params["reduced_dim"]
-    dim = params["dim"]
-    mode = params["mode"]
+  def __iter_per__(self):
+    reduced_dim = self.params["reduced_dim"]
+    dim = self.params["dim"]
+    mode = self.params["mode"]
     Mk = self.generate_matrix(dim,reduced_dim,mode)
     grad = self.subspace_first_order_oracle(self.xk,Mk)
-    if self.check_norm(grad,params["eps"]):
+    if self.check_norm(grad,self.params["eps"]):
       self.finish = True
       return
     H = self.subspace_second_order_oracle(self.xk,Mk)
     dk = self.__direction__(grad=grad,hess=H)
-    lr = self.__step_size__(grad=grad,dk=dk,params=params,Mk=Mk)
+    lr = self.__step_size__(grad=grad,dk=dk,Mk=Mk)
     self.__update__(lr*Mk.T@dk)
   
   def __direction__(self, grad,hess):
     return - jnp.linalg.solve(hess,grad)
     
-  def __step_size__(self, grad,dk,Mk,params):
-    alpha = params["alpha"]
-    beta = params["beta"]
+  def __step_size__(self, grad,dk,Mk):
+    alpha = self.params["alpha"]
+    beta = self.params["beta"]
     return subspace_line_search(self.xk,self.f,projected_grad=grad,dk=dk,Mk=Mk,alpha=alpha,beta=beta)
 
   def generate_matrix(self,dim,reduced_dim,mode):
@@ -591,27 +681,27 @@ class LimitedMemoryNewton(optimization_solver):
     else:
         return H                                                                                                                                                                                                                                                                                        
   
-  def __iter_per__(self, params):
-    matrix_size = params["reduced_dim"]
-    threshold_eigenvalue = params["threshold_eigenvalue"]
-    mode = params["mode"]
+  def __iter_per__(self):
+    matrix_size = self.params["reduced_dim"]
+    threshold_eigenvalue = self.params["threshold_eigenvalue"]
+    mode = self.params["mode"]
     gk = self.__first_order_oracle__(self.xk)
-    if self.check_norm(gk,params["eps"]):
+    if self.check_norm(gk,self.params["eps"]):
       self.finish = True
       return
     self.generate_matrix(matrix_size,gk,mode)
     proj_gk = self.Pk@gk
     Hk = self.subspace_second_order_oracle(self.xk,self.Pk,threshold_eigenvalue)
     dk = self.__direction__(grad=proj_gk,hess = Hk)
-    lr = self.__step_size__(grad=proj_gk,dk=dk,Mk = self.Pk,params=params)
+    lr = self.__step_size__(grad=proj_gk,dk=dk,Mk = self.Pk)
     self.__update__(lr*self.Pk.T@dk)
   
   def __direction__(self, grad,hess):
     return - jnp.linalg.solve(hess,grad)
   
-  def __step_size__(self, grad,dk,Mk,params):
-    alpha = params["alpha"]
-    beta = params["beta"]
+  def __step_size__(self, grad,dk,Mk):
+    alpha = self.params["alpha"]
+    beta = self.params["beta"]
     return subspace_line_search(self.xk,self.f,projected_grad=grad,dk=dk,Mk=Mk,alpha=alpha,beta=beta)
 
 class RandomizedBFGS(optimization_solver):
@@ -650,11 +740,11 @@ class RandomizedBFGS(optimization_solver):
     self.Bk_inv = jnp.eye(x0.shape[0],dtype = self.dtype)
     return super().__run_init__(f, x0, iteration,params)
   
-  def __iter_per__(self, params):
-    reduced_dim = params["reduced_dim"]
-    dim = params["dim"]
+  def __iter_per__(self):
+    reduced_dim = self.params["reduced_dim"]
+    dim = self.params["dim"]
     grad,loss_k = self.__first_order_oracle__(self.xk,output_loss=True)
-    if self.check_norm(grad,params["eps"]):
+    if self.check_norm(grad,self.params["eps"]):
       self.finish = True
       return
     Hk = self.__second_order_oracle__(self.xk)
