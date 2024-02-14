@@ -774,4 +774,53 @@ class RandomizedBFGS(optimization_solver):
   def generate_matrix(self,reduced_dim,dim):
     return jax_randn(dim,reduced_dim,dtype=self.dtype)
 
+class SubspaceRNM(optimization_solver):
+  def __init__(self, dtype=jnp.float64) -> None:
+    super().__init__(dtype)
+    self.params_key = [
+      "reduced_dim",
+      "gamma",
+      "c1",
+      "c2",
+      "alpha",
+      "beta",
+      "eps"
+    ]
+  
+  def __iter_per__(self):
+    reduced_dim = self.params["reduced_dim"]
+    dim = self.xk.shape[0]
+    Pk = self.generate_matrix(dim,reduced_dim)
+    subspece_H = self.subspace_second_order_oracle(self.xk,Mk)
+    projected_grad = self.subspace_first_order_oracle(self.xk,Mk)
+    if self.check_norm(projected_grad,self.params["eps"]):
+      self.finish = True
+      return
+    l_min = get_minimum_eigenvalue(subspece_H)
+    L = max(0,-l_min)
+    Mk = subspece_H + self.params["c1"]*L*jnp.eye(reduced_dim,dtype = self.dtype) + self.params["c2"]*jnp.linalg.norm(projected_grad)**self.params["gamma"]*jnp.eye(reduced_dim,dtype = self.dtype)
+    dk = self.__direction__(projected_grad,Mk)
+    s = self.__step_size__(projected_grad=projected_grad,
+                           Mk=Pk,
+                           dk = dk)
+    self.__update__(s*dk)
 
+  def __direction__(self, projected_grad,subspace_H):
+    return - jnp.linalg.solve(subspace_H,projected_grad)
+   
+  def __step_size__(self, projected_grad,dk,Mk):
+    alpha = self.params["alpha"]
+    beta = self.params["beta"]
+    return subspace_line_search(xk = self.xk,
+                                func = self.f,
+                                projected_grad=projected_grad,
+                                dk=dk,
+                                Mk=Mk,
+                                alpha=alpha,
+                                beta=beta)
+
+  def generate_matrix(self,dim,reduced_dim,mode = "random"):
+    # (dim,reduced_dim)の行列を生成
+    if mode == "random":
+      return jax_randn(reduced_dim,dim,dtype=self.dtype)/(reduced_dim**0.5)
+  
