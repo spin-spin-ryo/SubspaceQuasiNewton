@@ -4,10 +4,10 @@ import numpy as np
 import jax.numpy as jnp
 from jax.lax import transpose
 from jax import grad,jit
-from utils.calculate import line_search,subspace_line_search,get_minimum_eigenvalue,hessian,jax_randn,get_jvp
+from utils.calculate import line_search,subspace_line_search,get_minimum_eigenvalue,hessian,jax_randn,get_jvp,get_hessian_with_hvp
 from utils.logger import logger
 import os
-from environments import FINITEDIFFERENCE,DIRECTIONALDERIVATIVE,LEESELECTION
+from environments import FINITEDIFFERENCE,DIRECTIONALDERIVATIVE,LEESELECTION,RANDOM
 
 class optimization_solver:
   def __init__(self,dtype = jnp.float64) -> None:
@@ -74,10 +74,14 @@ class optimization_solver:
       return grad(subspace_func)(d)
   
   def subspace_second_order_oracle(self,x,Mk):
-    reduced_dim = Mk.shape[0]
-    d = jnp.zeros(reduced_dim,dtype = self.dtype)
-    sub_func = lambda d: self.f(x +Mk.T@d)
-    return hessian(sub_func)(d)
+    if isinstance(self.backward_mode,str):
+      if self.backward_mode == DIRECTIONALDERIVATIVE:
+        return get_hessian_with_hvp(self.f,x,Mk)
+    else:
+      reduced_dim = Mk.shape[0]
+      d = jnp.zeros(reduced_dim,dtype = self.dtype)
+      sub_func = lambda d: self.f(x +Mk.T@d)
+      return hessian(sub_func)(d)
        
   def __clear__(self):
     return
@@ -664,7 +668,7 @@ class LimitedMemoryNewton(optimization_solver):
     
   def generate_matrix(self,matrix_size,gk,mode):
     # P^\top = [x_0,\nabla f(x_0),...,x_k,\nabla f(x_k)]
-    dim = gk.shape[0]
+    dim = self.xk.shape[0]
     if mode == LEESELECTION:
       if self.Pk is None:
         self.Pk = jnp.zeros((matrix_size,dim),dtype = self.dtype)
@@ -672,14 +676,14 @@ class LimitedMemoryNewton(optimization_solver):
       self.Pk = self.Pk.at[self.index+1].set(gk)
       self.index+=2
       self.index %= matrix_size
+    elif mode == RANDOM:
+      self.Pk = jax_randn(matrix_size,dim,dtype = self.dtype)/matrix_size**0.5
     else:
       raise ValueError(f"{mode} is not implemented.")
     
   def subspace_second_order_oracle(self,x,Mk,threshold_eigenvalue):
     matrix_size = Mk.shape[0]
-    d = jnp.zeros(matrix_size,dtype = self.dtype)
-    sub_loss = lambda d:self.f(x + Mk.T@d)
-    H = hessian(sub_loss)(d)
+    H = super().subspace_second_order_oracle(x,Mk)
     sigma_m = get_minimum_eigenvalue(H)
     if sigma_m < threshold_eigenvalue:
         return H + (threshold_eigenvalue - sigma_m)*jnp.eye(matrix_size,dtype = self.dtype)
@@ -690,12 +694,12 @@ class LimitedMemoryNewton(optimization_solver):
     matrix_size = self.params["reduced_dim"]
     threshold_eigenvalue = self.params["threshold_eigenvalue"]
     mode = self.params["mode"]
-    gk = self.__first_order_oracle__(self.xk)
-    if self.check_norm(gk,self.params["eps"]):
+    self.generate_matrix(matrix_size,None,mode)
+    
+    proj_gk = self.subspace_first_order_oracle(self.xk,self.Pk)
+    if self.check_norm(proj_gk,self.params["eps"]):
       self.finish = True
       return
-    self.generate_matrix(matrix_size,gk,mode)
-    proj_gk = self.Pk@gk
     Hk = self.subspace_second_order_oracle(self.xk,self.Pk,threshold_eigenvalue)
     dk = self.__direction__(grad=proj_gk,hess = Hk)
     lr = self.__step_size__(grad=proj_gk,dk=dk,Mk = self.Pk)

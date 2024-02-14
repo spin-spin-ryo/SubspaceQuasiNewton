@@ -1,7 +1,7 @@
 from jax import jacrev,jacfwd
 import jax.numpy as jnp
 from jax.lax import transpose
-from jax import random,jvp
+from jax import random,jvp,grad
 from environments import key
 import numpy as np
 
@@ -130,3 +130,18 @@ def clipping_eigenvalues(B,lower,upper):
   eig_vals[eig_vals > upper] = upper
   eig_vals = jnp.array(eig_vals)
   return eig_vecs@jnp.diag(eig_vals)@eig_vecs.T
+
+# forward-over-reverse
+def hvp(f, primals, tangents):
+  return jvp(grad(f), primals, tangents)[1]
+
+def get_hessian_with_hvp(f,x,M):
+  reduced_dim = M.shape[0]
+  MHM = np.zeros((reduced_dim,reduced_dim),dtype = x.dtype)
+  for i in range(reduced_dim):
+    Hm = hvp(f,(x,),(M[i],))
+    for j in range(i,reduced_dim):
+      a = jnp.dot(Hm,M[j])
+      MHM[i,j] = a
+      MHM[j,i] = a
+  return MHM
