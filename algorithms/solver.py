@@ -18,6 +18,8 @@ def get_solver(solver_name,dtype):
         solver = SubspaceNewton(dtype=dtype)
     elif solver_name == LIMITED_MEMORY_NEWTON:
         solver = LimitedMemoryNewton(dtype=dtype)
+    elif solver_name == SUBSPACE_REGULARIZED_NEWTON:
+        solver = SubspaceRNM(dtype=dtype)
     elif solver_name == LIMITED_MEMORY_BFGS:
         solver = LimitedMemoryBFGS(dtype = dtype)
     elif solver_name == PROXIMAL_GRADIENT_DESCENT:

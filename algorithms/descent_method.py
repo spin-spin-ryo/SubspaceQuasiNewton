@@ -788,15 +788,16 @@ class SubspaceRNM(optimization_solver):
       "c2",
       "alpha",
       "beta",
-      "eps"
+      "eps",
+      "backward"
     ]
   
   def __iter_per__(self):
     reduced_dim = self.params["reduced_dim"]
     dim = self.xk.shape[0]
     Pk = self.generate_matrix(dim,reduced_dim)
-    subspece_H = self.subspace_second_order_oracle(self.xk,Mk)
-    projected_grad = self.subspace_first_order_oracle(self.xk,Mk)
+    subspece_H = self.subspace_second_order_oracle(self.xk,Pk)
+    projected_grad = self.subspace_first_order_oracle(self.xk,Pk)
     if self.check_norm(projected_grad,self.params["eps"]):
       self.finish = True
       return
@@ -807,7 +808,7 @@ class SubspaceRNM(optimization_solver):
     s = self.__step_size__(projected_grad=projected_grad,
                            Mk=Pk,
                            dk = dk)
-    self.__update__(s*dk)
+    self.__update__(s*Pk.T@dk)
 
   def __direction__(self, projected_grad,subspace_H):
     return - jnp.linalg.solve(subspace_H,projected_grad)
