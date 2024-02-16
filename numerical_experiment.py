@@ -1,6 +1,7 @@
 from algorithms.solver import get_solver
 from problems.generate_problem import generate_objective,generate_constraints,generate_initial_points,objective_properties_key,constraints_properties_key
 from environments import NOCONSTRAINTS,DTYPE,REGULARIZED
+from utils.calculate import identity_prox
 
 def get_objects_from_config(config):
     algorithms_config = config["algorithms"]
@@ -44,7 +45,7 @@ def get_objects_from_config(config):
       con,prox = generate_constraints(constraints_name=constraints_name,constraints_properties=constraints_properties)
     else:
       con = None
-      prox = None
+      prox = identity_prox
     
         
     x0 = generate_initial_points(func=f,

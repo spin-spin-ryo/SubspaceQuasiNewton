@@ -78,6 +78,9 @@ def BoxProjection(x,radius = 1):
     y[y<-radius] = -radius
     return jnp.array(y)
 
+def identity_prox(x,t):
+  return x
+
 def L1projection(x,radius = 1):
   if jnp.linalg.norm(x,ord=1)<=radius:
     return x

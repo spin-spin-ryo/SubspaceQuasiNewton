@@ -72,13 +72,22 @@ def run_numerical_experiment(config):
                 log_interval=log_interval
                 )
   else:
-    solver.run(f=f,
-              x0=x0,
-              iteration=iteration,
-              params=solver_params,
-              save_path=save_path,
-              log_interval=log_interval
-              )
+    if use_prox:
+      solver.run(f=f,
+                 prox=prox,
+                 x0=x0,
+                 iteration=iteration,
+                 params=solver_params,
+                 save_path=save_path,
+                 log_interval=log_interval)
+    else:
+      solver.run(f=f,
+                x0=x0,
+                iteration=iteration,
+                params=solver_params,
+                save_path=save_path,
+                log_interval=log_interval
+                )
   solver.save_results(save_path)
   nonzero_index = solver.save_values["func_values"] != 0
   min_f_value = np.min(solver.save_values["func_values"][nonzero_index])
