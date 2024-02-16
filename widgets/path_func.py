@@ -5,6 +5,24 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 SLASH = os.path.join("a","b")[1:-1]
 import jax.numpy as jnp
+from environments import *
+
+FORMAL_LABEL = {
+  GRADIENT_DESCENT:GRADIENT_DESCENT,
+  SUBSPACE_GRADIENT_DESCENT:SUBSPACE_GRADIENT_DESCENT,
+  ACCELERATED_GRADIENT_DESCENT:ACCELERATED_GRADIENT_DESCENT,
+  NEWTON:NEWTON,
+  SUBSPACE_NEWTON:SUBSPACE_NEWTON,
+  LIMITED_MEMORY_NEWTON:LIMITED_MEMORY_NEWTON,
+  LIMITED_MEMORY_BFGS:LIMITED_MEMORY_BFGS,
+  BFGS_QUASI_NEWTON:BFGS_QUASI_NEWTON,
+  RANDOM_BFGS:RANDOM_BFGS,
+  SUBSPACE_REGULARIZED_NEWTON:SUBSPACE_REGULARIZED_NEWTON,
+  PROXIMAL_GRADIENT_DESCENT:PROXIMAL_GRADIENT_DESCENT,
+  ACCELERATED_PROXIMAL_GRADIENT_DESCENT:ACCELERATED_GRADIENT_DESCENT,
+  MARUMO_AGD:MARUMO_AGD,
+  SUBSPACE_QUASI_NEWTON:SUBSPACE_QUASI_NEWTON
+}
 
 def show_result_with_option(result_pathes,options):
   fvalues = []
@@ -58,9 +76,9 @@ def show_result_with_option(result_pathes,options):
           if solver_name == "Proposed":
             matrix_size = param_dict["matrix_size"]
             reduced_dim = param_dict["reduced_dim"]
-            labeled[result_path] = solver_name+r"$(d = {}, m = {})$".format(reduced_dim,matrix_size)
+            labeled[result_path] = FORMAL_LABEL[solver_name]+r"$(d = {}, m = {})$".format(reduced_dim,matrix_size)
           else:
-            labeled[result_path] = solver_name
+            labeled[result_path] = FORMAL_LABEL[solver_name]
                 
   for result_path in result_pathes:
     print(result_path)
@@ -79,15 +97,10 @@ def show_result_with_option(result_pathes,options):
       v = v[nonzeroindex]
       t = t[nonzeroindex]
       t+=1
-      if end != -1:
-        index = t < end
-      else:
-        index = np.ones(len(t),dtype=bool)    
-      # start = 0　想定
       if "Proposed" in p:
-        plt.plot(t[index][::full_line],v[index][::full_line],label = labeled[p])
+        plt.plot(t[::full_line],v[::full_line],label = labeled[p])
       else:
-        plt.plot(t[index][::full_line],v[index][::full_line],label = labeled[p],linestyle = "dotted")
+        plt.plot(t[::full_line],v[::full_line],label = labeled[p],linestyle = "dotted")
     plt.xlabel("Time[s]",fontsize = LABELFONTSIZE)
   else:
     for index,(p,v,t) in enumerate(zip(result_pathes,fvalues,time_values)):
@@ -96,11 +109,13 @@ def show_result_with_option(result_pathes,options):
       nonzeroindex[0] = True
       v = v[nonzeroindex]
       if "Proposed" in p:
-        plt.plot(np.arange(1,len(v)+1)[start:end][::full_line],v[start:end][::full_line],label = labeled[p])
+        plt.plot(np.arange(1,len(v)+1)[::full_line],v[::full_line],label = labeled[p])
       else:
-        plt.plot(np.arange(1,len(v)+1)[start:end][::full_line],v[start:end][::full_line],label = labeled[p],linestyle = "dotted")
+        plt.plot(np.arange(1,len(v)+1)[::full_line],v[::full_line],label = labeled[p],linestyle = "dotted")
     plt.xlabel("Iterations",fontsize = LABELFONTSIZE)
   
+  if end != -1:
+    plt.xlim(left = start-end*0.1,right = end*1.1)
   plt.rc('font', size=TICKLABELSIZE)
   if not labeledflag:
     plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=1,borderaxespad=0,fontsize = LABELFONTSIZE)
