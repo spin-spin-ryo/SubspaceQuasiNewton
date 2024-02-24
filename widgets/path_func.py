@@ -68,6 +68,11 @@ def show_result_with_option(result_pathes,options):
       TICKLABELSIZE = v
     if k == "label":
       labeledflag = v
+      are_all_proposed = True
+      for result_path in result_pathes:
+        solver_name = result_path.split(SLASH)[-2]
+        are_all_proposed = ("Proposed" == solver_name)
+
       for result_path in result_pathes:
         if v:
           solver_name = result_path.split(SLASH)[-2]
@@ -76,7 +81,10 @@ def show_result_with_option(result_pathes,options):
           if solver_name == "Proposed":
             matrix_size = param_dict["matrix_size"]
             reduced_dim = param_dict["reduced_dim"]
-            labeled[result_path] = FORMAL_LABEL[solver_name]+r"$(d = {}, m = {})$".format(reduced_dim,matrix_size)
+            if are_all_proposed:
+              labeled[result_path] = r"$(d = {}, m = {})$".format(reduced_dim,matrix_size)
+            else:
+              labeled[result_path] = FORMAL_LABEL[solver_name]+r"$(d = {}, m = {})$".format(reduced_dim,matrix_size)
           else:
             labeled[result_path] = FORMAL_LABEL[solver_name]
                 
