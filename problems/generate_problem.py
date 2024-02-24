@@ -106,8 +106,7 @@ def generate_initial_points(func,function_name,constraints_name,function_propert
     
     if function_name == MLPNET:
         if function_properties["data_name"] == "mnist":
-            # dim:669706
-            x0 = jnp.load(os.path.join(DATAPATH,"mnist","mlpnet","init_param.npy"))
+            x0 = jnp.load(os.path.join(DATAPATH,"mnist","mlpnet",f"init_param_{dim}.npy"))
             return x0
     
     if function_name == CNN:
