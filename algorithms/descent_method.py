@@ -694,7 +694,7 @@ class LimitedMemoryNewton(optimization_solver):
     matrix_size = self.params["reduced_dim"]
     threshold_eigenvalue = self.params["threshold_eigenvalue"]
     mode = self.params["mode"]
-    gk = self.__first_order_oracle(self.xk,self.Pk)
+    gk = self.__first_order_oracle__(self.xk,self.Pk)
     self.generate_matrix(matrix_size,gk,mode)
     proj_gk = self.Pk@gk
     if self.check_norm(gk,self.params["eps"]):
