@@ -24,12 +24,14 @@ def open_option_window(root,option_window,option_entries):
     entry_label = generate_entry(option_window,"label")
     entry_labelfontsize = generate_entry(option_window,"label_fontsize")
     entry_tickfontsize = generate_entry(option_window,"tick_fontsize")
+    entry_legendfontsize = generate_entry(option_window,"legend_fontsize")
     entry_start.insert(0,"0")
     entry_end.insert(0,"-1")
     entry_interval.insert(0,"100")
     entry_mode.insert(0,"function_value")
     entry_labelfontsize.insert(0,"18")
     entry_tickfontsize.insert(0,"18")
+    entry_legendfontsize.insert(0,"18")
     entry_label.insert(0,"True")
 
     
@@ -43,4 +45,5 @@ def open_option_window(root,option_window,option_entries):
     option_entries[("label",bool)] = entry_label
     option_entries[("label_fontsize",int)] = entry_labelfontsize
     option_entries[("tick_fontsize",int)] = entry_tickfontsize
+    option_entries[("legend_fontsize",int)] = entry_legendfontsize
     return option_window,option_entries

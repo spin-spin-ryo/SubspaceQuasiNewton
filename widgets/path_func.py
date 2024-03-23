@@ -24,6 +24,32 @@ FORMAL_LABEL = {
   SUBSPACE_QUASI_NEWTON:SUBSPACE_QUASI_NEWTON
 }
 
+MARKERS = {
+  GRADIENT_DESCENT:"x",
+  SUBSPACE_GRADIENT_DESCENT:"s",
+  ACCELERATED_GRADIENT_DESCENT:"o",
+  NEWTON:"v",
+  SUBSPACE_NEWTON:"^",
+  LIMITED_MEMORY_NEWTON:"<",
+  LIMITED_MEMORY_BFGS:">",
+  BFGS_QUASI_NEWTON:"D",
+  RANDOM_BFGS:"8",
+  SUBSPACE_REGULARIZED_NEWTON:"+",
+  PROXIMAL_GRADIENT_DESCENT:".",
+  ACCELERATED_PROXIMAL_GRADIENT_DESCENT:"o",
+  MARUMO_AGD:"o",
+  SUBSPACE_QUASI_NEWTON:""
+}
+
+MARKERS_LIST = ["",
+                "o",
+                "x",
+                "s",
+                "v",
+                "*",
+                "+",
+                "^"]
+
 def show_result_with_option(result_pathes,options):
   fvalues = []
   time_values = []
@@ -37,6 +63,8 @@ def show_result_with_option(result_pathes,options):
   full_line = 100
   LABELFONTSIZE = 18
   TICKLABELSIZE = 18
+  LEGENDFONTSIZE = 18
+  are_all_proposed = True
   plt.figure()
   plt.rcParams["font.family"] = 'Times New Roman'
   plt.rcParams["mathtext.fontset"] = 'stix'
@@ -66,9 +94,10 @@ def show_result_with_option(result_pathes,options):
       LABELFONTSIZE = v
     if k == "tick_fontsize":
       TICKLABELSIZE = v
+    if k == "legend_fontsize":
+      LEGENDFONTSIZE = v
     if k == "label":
       labeledflag = v
-      are_all_proposed = True
       for result_path in result_pathes:
         solver_name = result_path.split(SLASH)[-2]
         are_all_proposed = ("Proposed" == solver_name)
@@ -97,38 +126,39 @@ def show_result_with_option(result_pathes,options):
       fvalues.append(jnp.load(os.path.join(result_path,"grad_norm.npy")))
       time_values.append(jnp.load(os.path.join(result_path,"time.npy")))
       
-  if "time" in xscale:
-    for index,(p,v,t) in enumerate(zip(result_pathes,fvalues,time_values)):
-      nonzeroindex = t>0
-      nonzeroindex = np.array(nonzeroindex)
-      nonzeroindex[0] = True
-      v = v[nonzeroindex]
+  for index,(p,v,t) in enumerate(zip(result_pathes,fvalues,time_values)):
+    nonzeroindex = t>0
+    nonzeroindex = np.array(nonzeroindex)
+    nonzeroindex[0] = True
+    v = v[nonzeroindex]
+    solver_name = p.split(SLASH)[-2]
+    if "time" in xscale:
       t = t[nonzeroindex]
       t+=1
-      if "Proposed" in p:
-        plt.plot(t[::full_line],v[::full_line],label = labeled[p])
-      else:
-        plt.plot(t[::full_line],v[::full_line],label = labeled[p],linestyle = "dotted")
-    plt.xlabel("Time[s]",fontsize = LABELFONTSIZE)
-  else:
-    for index,(p,v,t) in enumerate(zip(result_pathes,fvalues,time_values)):
-      nonzeroindex = t > 0
-      nonzeroindex = np.array(nonzeroindex)
-      nonzeroindex[0] = True
-      v = v[nonzeroindex]
-      if "Proposed" in p:
-        plt.plot(np.arange(1,len(v)+1)[::full_line],v[::full_line],label = labeled[p])
-      else:
-        plt.plot(np.arange(1,len(v)+1)[::full_line],v[::full_line],label = labeled[p],linestyle = "dotted")
-    plt.xlabel("Iterations",fontsize = LABELFONTSIZE)
-  
+      x_list = t
+      y_list = v   
+      plt.xlabel("Time[s]",fontsize = LABELFONTSIZE)
+    else:
+      x_list = np.arange(1,len(v)+1)
+      y_list = v
+      plt.xlabel("Iterations",fontsize = LABELFONTSIZE)
+    
+    if full_line*10 < len(v):
+      x_list = x_list[::full_line]
+      y_list = y_list[::full_line]
+    
+    if not are_all_proposed:
+      plt.plot(x_list,y_list,marker = MARKERS[solver_name],label = labeled[p])
+    else:
+      plt.plot(x_list,y_list,marker = MARKERS_LIST[index],label = labeled[p])
+
   if end != -1:
     plt.xlim(left = start-end*0.1,right = end*1.1)
   plt.rc('font', size=TICKLABELSIZE)
   if not labeledflag:
-    plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=1,borderaxespad=0,fontsize = LABELFONTSIZE)
+    plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=1,borderaxespad=0,fontsize = LEGENDFONTSIZE)
   else:
-    plt.legend()
+    plt.legend(fontsize = LEGENDFONTSIZE)
   if mode == "function_value":
     plt.ylabel(r'$f(x)$',fontsize = LABELFONTSIZE)
   elif mode == "grad_norm":
