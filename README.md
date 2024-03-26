@@ -84,3 +84,72 @@ $$\{x| \|x\|_p^p \le s\}$$
 ord: $p$,
 threshold: $s$
 
+## algorithms
+#### backward parameters
+ True: use automatic differentiation (very fast, but memory leak sometimes happens (CNN))
+  DD: use directional derivative with automatic differentiation (efficiency depends on the dimension, no error)
+  FD: use finite difference (efficiency depends on the dimension, error exists)
+
+### GD(Gradient descent)
+lr: step size,
+eps: stop criteria,
+linesearch: if true, use armijo line search with $\alpha = 0.3, \beta = 0.8$.
+
+### SGD(Subspace gradient descent[https://arxiv.org/abs/2003.02684])
+lr: step size,
+eps: stop criteria,
+reduced_dim: size of random matrix,
+mode: only "random",
+linesearch: if true, use armijo line search with $\alpha = 0.3, \beta = 0.8$.
+
+### AGD(Accelerated Gradient descent)
+lr: step size,
+eps: stop criteria,
+restart: if true, use function value restart.
+
+### BFGS
+alpha: parameter of line search,
+beta: parameter of line search,
+eps: stop criteria
+
+### LimitedMemoryBFGS[https://en.wikipedia.org/wiki/Limited-memory_BFGS]
+alpha: parameter of line search,
+beta: parameter of line search,
+eps: stop criteria
+memory_size: the number of past data.
+
+### BacktrackingProximalGD(proximal gradient descent with line search)
+alpha: parameter of line search,
+beta: parameter of line search,
+eps: stop criteria
+
+### BacktrackingAcceleratedProximalGD(accelerated proximal gradient descent with line search)
+alpha: parameter of line search,
+beta: parameter of line search,
+eps: stop criteria,
+restart: if true, use function value restart.
+
+### Newton method
+alpha: parameter of line search,
+beta: parameter of line search,
+eps: stop criteria,
+
+### SubspaceNewton[https://arxiv.org/abs/1905.10874]
+dim: the dimension of problem,
+reduced_dim, the size of random matrix,
+mode: the type of random matrix(only "random"),
+alpha: parameter of line search,
+beta: parameter of line search,
+eps: stop criteria,
+
+### LimitedMemoryNewton[https://link.springer.com/article/10.1007/s12532-022-00219-z]
+reduced_dim: the size of subspace matrix,
+threshold_eigenvalue: parameter of clipping eigenvalues,
+mode: the type of random matrix(only "LEESELECTION"),
+alpha: parameter of line search,
+beta: parameter of line search,
+eps: stop criteria,
+
+### SubspaceRNM(subspace regularized newton method[https://arxiv.org/abs/2209.04170])
+reduced_dim:the size of random matrix,
+please refer to the paper for other parameters.
