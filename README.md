@@ -59,28 +59,28 @@ Fused: only False
 ## constraints
 
 ### POLYTOPE
-$$\{ x| Ax-b \le 0\}$$
+$${ x| Ax-b \le 0}$$
 data_name:only "random",
 dim: the dimension of $x$,
 constraints_num: the dimension of $b$
 
 ### NONNEGATIVE
-$$\{x | x_i \ge 0\}$$
+$${x | x_i \ge 0}$$
 dim: the dimension of $x$
 
 ### QUADRATIC
-$$\{x| \frac{1}{2}x^\top A_i x + b_i^\top x + c_i \le 0, i = 1,...,m\}$$
+$${x| \frac{1}{2}x^\top A_i x + b_i^\top x + c_i \le 0, i = 1,...,m}$$
 data_name: only "random",
 dim: the dimension of $x$,
 constraints_num: m
 
 ### FUSEDLASSO
-$$\{x| \|x\|_1 \le s_1, \sum_{i} |x_{i+1} - x_i|\le s_2\}$$
+$${x| \|x\|_1 \le s_1, \sum_{i} |x_{i+1} - x_i|\le s_2}$$
 threshold1: $s_1$,
 threshold2: $s_2$
 
 ### BALL
-$$\{x| \|x\|_p^p \le s\}$$
+$${x| \|x\|_p^p \le s}$$
 ord: $p$,
 threshold: $s$
 
