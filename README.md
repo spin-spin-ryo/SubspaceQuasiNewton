@@ -19,3 +19,23 @@ not used
 ### MATRIXFACTORIZATION
 $$\min_{U,V} \|UV - X\|_F^2$$
 data_name: only "movie", rank: the number of row of $U$, and column of $V$.
+
+### MATRIXFACTORIZATION_COMPLETION
+$$\min_{U,V} \|\mathcal{P}_{\Omega}(UV) - \mathcal{P}_{\Omega}(X)\|_F^2$$
+data_name: only "movie", rank: the number of row of $U$, and column of $V$.
+
+### LEASTSQUARE
+not used
+
+### MLPNET
+linear neural network:
+$$\min_{w} \sum_{i=1}^m \mathcal{L}(\mathcal{W}(w,x_i),y_i)$$
+$(x_i,y_i)$:dataset, layers_size: [(in_features,out_feafures,use bias or not),], activation: activation function name (see `utils/select.py`), criterion: type of loss function (only 'CrossEntropy')
+
+### CNN
+convolutional neural network:
+$$\min_{w} \sum_{i=1}^m \mathcal{L}(\mathcal{W}(w,x_i),y_i)$$
+$(x_i,y_i)$:dataset,
+layers_size: [(input_channels,output_channelskernel_size,bias_flag)],
+activation: activation function name (see `utils/select.py`),
+criterion: type of loss function (only 'CrossEntropy')
