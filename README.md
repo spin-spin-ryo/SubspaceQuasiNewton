@@ -153,3 +153,15 @@ eps: stop criteria,
 ### SubspaceRNM(subspace regularized newton method[https://arxiv.org/abs/2209.04170])
 reduced_dim:the size of random matrix,
 please refer to the paper for other parameters.
+
+
+### Proposed method
+alpha: parameter of line search,
+beta: parameter of line search,
+eps: stop criteria,
+reduced_dim: the size of random matrix,
+matrix_size: the size of subspace matrix(not random),
+dim: the dimension of problem,
+lower_eigenvalue: the parameter of clipping eigenvalues,
+upper_eigenvalue: the parameter of clipping eigenvalues,
+mode: the type of random matrix(only "random")
