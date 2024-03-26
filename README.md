@@ -12,3 +12,10 @@
 ### QUADRATIC
 $$\min_{x\in \mathbb{R}^n} \frac{1}{2}x^\top A x + b^\top x$$
 dim: n, if convex is True, then A become a semi definite matrix. data_name: only "random".
+
+### SPARSEQUADRATIC
+not used
+
+### MATRIXFACTORIZATION
+$$\min_{U,V} \|UV - X\|_F^2$$
+data_name: only "movie", rank: the number of row of $U$, and column of $V$.
