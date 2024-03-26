@@ -1,28 +1,13 @@
-# optimization_for_research
+# Subspace quasi newton method
 
-# proposed
-パラメータを動かした場合の比較
+## How to run numerical experiments
+1. Select optimization problem and an algorithm and set the parameters in `make_config.py`.
+2. Make config.json file using command `python make_config.py`.
+3. Run numerical experiments using command `python main.py path/to/config.json`.
+4. Check the results in `results/problem_name/problem_parameters/constraints_name/constraints_parameters/algorithm_name/algorithm_parameters` directory.
+5. You can compare results using `python result_show.py`. with GUI interface.
 
-他と比較
+## problems
 
-MLPNETの初期展
-
-full dimension
-・gradient descent ラインサーチ付きを実装
-・accelerated gradient descent　リスタートつき
-・Marumo AGD 実装
-・newton
-・BFGS
-・Limited memory bfgs
-
-subspace
-・subspace gradient descent
-・subspace newton
-・Lee et al.[1, 2]’s method　これ追加
-・RS-RNM 追加
-・Kovalev et al.’s method
-・propsoed 
-
-fullspace hessian x
-subspace hessian o
-
+### QUADRATIC
+$$\min_x \frac{1}{2}x^\top A x + b^\top x$$

@@ -7,7 +7,7 @@ DATAPATH = "./data"
 RESULTPATH = "./results"
 DTYPE = jnp.float64
 
-# 目的関数一覧
+# Objectives
 QUADRATIC = "Quadratic"
 SPARSEQUADRATIC = "SparseQuadratic"
 MATRIXFACTORIZATION = "MatrixFactorization"
@@ -20,7 +20,7 @@ LOGISTIC = "Logistic"
 SPARSEGAUSSIANPROCESS = "SparseGaussianProcess"
 REGULARIZED = "Regularized"
 
-# 制約一覧
+# constraints
 POLYTOPE = "Polytope"
 NONNEGATIVE = "NonNegative"
 FUSEDLASSO = "FusedLasso"
@@ -28,7 +28,7 @@ BALL = "Ball"
 HUBER = "Huber"
 NOCONSTRAINTS = "NoConstraint"
 
-# アルゴリズム手法一覧
+# algorithms
 GRADIENT_DESCENT = "GD"
 SUBSPACE_GRADIENT_DESCENT = "SGD"
 ACCELERATED_GRADIENT_DESCENT = "AGD"
