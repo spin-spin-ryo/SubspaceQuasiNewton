@@ -10,4 +10,5 @@
 ## problems
 
 ### QUADRATIC
-$$\min_x \frac{1}{2}x^\top A x + b^\top x$$
+$$\min_{x\in \mathbb{R}^n} \frac{1}{2}x^\top A x + b^\top x$$
+dim: n, if convex is True, then A become a semi definite matrix. data_name: only "random".
