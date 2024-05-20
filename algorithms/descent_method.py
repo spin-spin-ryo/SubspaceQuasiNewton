@@ -8,6 +8,7 @@ from utils.calculate import line_search,subspace_line_search,get_minimum_eigenva
 from utils.logger import logger
 import os
 from environments import FINITEDIFFERENCE,DIRECTIONALDERIVATIVE,LEESELECTION,RANDOM
+import random
 
 class optimization_solver:
   def __init__(self,dtype = jnp.float64) -> None:
@@ -22,6 +23,7 @@ class optimization_solver:
     self.save_values = {}
     self.params_key = {}
     self.params = {}
+    self.UID = ""
     pass
 
   def __zeroth_order_oracle__(self,x):
@@ -116,7 +118,8 @@ class optimization_solver:
     self.check_count +=1
     return d_norm <= eps
   
-  def run(self,f,x0,iteration,params,save_path,log_interval = -1):
+  def run(self,f,x0,iteration,params,save_path,log_interval = -1,overwrite_save = True):
+    self.UID = random.randint(0, 9999)
     self.__check_params__(params)
     self.__run_init__(f,x0,iteration,params)
     start_time = time.time()
@@ -132,17 +135,23 @@ class optimization_solver:
       self.update_save_values(i+1,time = T,func_values = F)
       if (i+1)%log_interval == 0 and log_interval != -1:
         logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
-        self.save_results(save_path)
+        self.save_results(save_path,overwrite_save)
     return
   
   def update_save_values(self,iter,**kwargs):
     for k,v in kwargs.items():
       self.save_values[k][iter] = v
   
-  def save_results(self,save_path):
-    for k,v in self.save_values.items():
-      jnp.save(os.path.join(save_path,k+".npy"),v)
-  
+  def save_results(self,save_path,overwrite_save = True):
+    if overwrite_save:
+      for k,v in self.save_values.items():
+        jnp.save(os.path.join(save_path,k+".npy"),v)
+    else:
+      if not os.path.exists(os.path.join(save_path,"others")):
+        os.makedirs(os.path.join(save_path,"others"))
+      for k,v in self.save_values.items():
+        jnp.save(os.path.join(save_path,"others",k+f"{self.UID}.npy"),v)
+
   def __update__(self,d):
     self.xk += d
 
@@ -487,7 +496,8 @@ class BacktrackingProximalGD(optimization_solver):
     self.prox = prox
     return super().__run_init__(f, x0, iteration,params)
   
-  def run(self, f, prox, x0, iteration, params,save_path,log_interval=-1):
+  def run(self, f, prox, x0, iteration, params,save_path,log_interval=-1,overwrite_save = True):
+    self.UID = random.randint(1000,9999)
     self.__check_params__(params)
     self.__run_init__(f,prox, x0,iteration,params)
     start_time = time.time()
@@ -501,7 +511,7 @@ class BacktrackingProximalGD(optimization_solver):
       self.save_values["func_values"][i+1] = self.f(self.xk)
       if (i+1)%log_interval == 0 and log_interval != -1:
         logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
-        self.save_results(save_path)
+        self.save_results(save_path,overwrite_save)
     return
   
 
@@ -724,7 +734,8 @@ class RandomizedBFGS(optimization_solver):
       "eps"
     ]
   
-  def run(self, f, x0, iteration, params, save_path, log_interval=-1):
+  def run(self, f, x0, iteration, params, save_path, log_interval=-1,overwrite_save = True):
+    self.UID = random.randint(1000,9999)
     self.__run_init__(f,x0,iteration,params)
     self.__check_params__(params)
     self.backward_mode = params["backward"]
@@ -742,7 +753,7 @@ class RandomizedBFGS(optimization_solver):
       self.update_save_values(i+1,time = T,func_values = F,grad_norm = G)
       if (i+1)%log_interval == 0 & log_interval != -1:
         logger.info(f'{i+1}: {self.save_values["func_values"][i+1]}')
-        self.save_results(save_path)
+        self.save_results(save_path,overwrite_save)
     return
   
   def __run_init__(self, f, x0,iteration,params):

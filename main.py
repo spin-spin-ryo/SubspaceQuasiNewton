@@ -13,6 +13,7 @@ QUASI_NEWTONS = [BFGS_QUASI_NEWTON,RANDOM_BFGS,SUBSPACE_QUASI_NEWTON]
 def run_numerical_experiment(config):
   iteration = config["iteration"]
   log_interval = config["log_interval"]
+  overwrite_save = config["overwrite_save"]
   algorithms_config = config["algorithms"]
   objectives_config = config["objective"]
   constraints_config = config["constraints"]
@@ -61,7 +62,8 @@ def run_numerical_experiment(config):
                  iteration=iteration,
                  params=solver_params,
                  save_path=save_path,
-                 log_interval=log_interval)
+                 log_interval=log_interval,
+                 overwrite_save = overwrite_save)
     else:
       solver.run(f=f,
                 con=con,
@@ -69,7 +71,8 @@ def run_numerical_experiment(config):
                 iteration=iteration,
                 params=solver_params,
                 save_path=save_path,
-                log_interval=log_interval
+                log_interval=log_interval,
+                overwrite_save = overwrite_save
                 )
   else:
     if use_prox:
@@ -79,16 +82,18 @@ def run_numerical_experiment(config):
                  iteration=iteration,
                  params=solver_params,
                  save_path=save_path,
-                 log_interval=log_interval)
+                 log_interval=log_interval,
+                 overwrite_save = overwrite_save)
     else:
       solver.run(f=f,
                 x0=x0,
                 iteration=iteration,
                 params=solver_params,
                 save_path=save_path,
-                log_interval=log_interval
+                log_interval=log_interval,
+                overwrite_save = overwrite_save
                 )
-  solver.save_results(save_path)
+  solver.save_results(save_path,overwrite_save = overwrite_save)
   nonzero_index = solver.save_values["func_values"] != 0
   min_f_value = np.min(solver.save_values["func_values"][nonzero_index])
   execution_time = solver.save_values["time"][-1]
