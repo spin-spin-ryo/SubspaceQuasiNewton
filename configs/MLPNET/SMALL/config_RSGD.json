@@ -1,0 +1,44 @@
+{
+  "objective": {
+    "objective_name": "RegularizedMLPNET",
+    "ord": 2,
+    "coeff": 0.0001,
+    "Fused": false,
+    "data_name": "mnist",
+    "layers_size": [
+      [
+        784,
+        64,
+        1
+      ],
+      [
+        64,
+        64,
+        1
+      ],
+      [
+        64,
+        10,
+        1
+      ]
+    ],
+    "activation": "relu",
+    "criterion": "CrossEntropy"
+  },
+  "constraints": {
+    "constraints_name": "NoConstraint"
+  },
+  "algorithms": {
+    "solver_name": "RSGD",
+    "lr": 0.1,
+    "reduced_dim": 50,
+    "dim": 55050,
+    "mode": "random",
+    "eps": 0.0001,
+    "backward": "DD",
+    "linesearch": true
+  },
+  "iteration": 10000,
+  "log_interval": 100,
+  "overwrite_save": false
+}

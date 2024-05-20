@@ -1,0 +1,41 @@
+{
+  "objective": {
+    "objective_name": "RegularizedCNN",
+    "ord": 2,
+    "coeff": 0.0001,
+    "Fused": false,
+    "data_name": "mnist",
+    "layers_size": [
+      [
+        1,
+        16,
+        5,
+        1
+      ],
+      [
+        16,
+        32,
+        5,
+        1
+      ]
+    ],
+    "activation": "relu",
+    "criterion": "CrossEntropy"
+  },
+  "constraints": {
+    "constraints_name": "NoConstraint"
+  },
+  "algorithms": {
+    "solver_name": "RSGD",
+    "lr": 0.01,
+    "reduced_dim": 50,
+    "dim": 33738,
+    "mode": "random",
+    "eps": 0.0001,
+    "backward": "DD",
+    "linesearch": true
+  },
+  "iteration": 8000,
+  "log_interval": 100,
+  "overwrite_save": false
+}
