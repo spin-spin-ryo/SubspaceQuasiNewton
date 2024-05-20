@@ -7,8 +7,10 @@
 4. Check the results in `results/problem_name/problem_parameters/constraints_name/constraints_parameters/algorithm_name/algorithm_parameters` directory.
 5. You can compare results using `python result_show.py`. with GUI interface.
 
-## problems
 
+You can reproduce the numerical experiment in the paper using json files in `configs/CNN` and `configs/MLPNET`. 
+
+## problems
 ### QUADRATIC
 $$\min_{x\in \mathbb{R}^n} \frac{1}{2}x^\top A x + b^\top x$$
 dim: n, if convex is True, then A become a semi definite matrix. data_name: only "random".
