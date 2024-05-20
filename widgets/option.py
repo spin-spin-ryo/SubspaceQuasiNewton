@@ -17,11 +17,14 @@ def open_option_window(root,option_window,option_entries):
         return
     entry_start = generate_entry(option_window,"start")
     entry_end = generate_entry(option_window,"end")
+    entry_ybottom = generate_entry(option_window,"y_bottom")
+    entry_ytop = generate_entry(option_window,"y_top")
     entry_xscale = generate_entry(option_window,"xscale")
     entry_yscale = generate_entry(option_window,"yscale")
     entry_interval = generate_entry(option_window,"full_line")
     entry_mode = generate_entry(option_window,"mode")
     entry_label = generate_entry(option_window,"label")
+    entry_style = generate_entry(option_window,"style")
     entry_labelfontsize = generate_entry(option_window,"label_fontsize")
     entry_tickfontsize = generate_entry(option_window,"tick_fontsize")
     entry_legendfontsize = generate_entry(option_window,"legend_fontsize")
@@ -33,11 +36,14 @@ def open_option_window(root,option_window,option_entries):
     entry_tickfontsize.insert(0,"18")
     entry_legendfontsize.insert(0,"18")
     entry_label.insert(0,"True")
+    entry_style.insert(0,"normal")
 
     
 
     option_entries[("start",int)] = entry_start
     option_entries[("end",int)] = entry_end
+    option_entries[("y_bottom",str)] = entry_ybottom
+    option_entries[("y_top",str)] = entry_ytop
     option_entries[("xscale",str)] = entry_xscale
     option_entries[("yscale",str)] = entry_yscale
     option_entries[("full_line",int)] = entry_interval
@@ -46,4 +52,5 @@ def open_option_window(root,option_window,option_entries):
     option_entries[("label_fontsize",int)] = entry_labelfontsize
     option_entries[("tick_fontsize",int)] = entry_tickfontsize
     option_entries[("legend_fontsize",int)] = entry_legendfontsize
+    option_entries[("style",str)] = entry_style
     return option_window,option_entries
