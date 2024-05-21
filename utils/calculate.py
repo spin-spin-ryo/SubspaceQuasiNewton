@@ -148,3 +148,6 @@ def get_hessian_with_hvp(f,x,M):
       MHM[i,j] = a
       MHM[j,i] = a
   return MHM
+
+def compute_difference(f, x, h, m, z):
+    return (f(x + h * m) - z) / h

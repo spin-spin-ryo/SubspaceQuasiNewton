@@ -32,7 +32,7 @@
     "reduced_dim": 50,
     "matrix_size": 10,
     "dim": 33738,
-    "backward": "DD",
+    "backward": "FD",
     "lower_eigenvalue": 0.1,
     "upper_eigenvalue": 100000,
     "eps": 0.0001,

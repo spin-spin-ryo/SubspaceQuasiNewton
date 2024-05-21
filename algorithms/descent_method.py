@@ -44,6 +44,7 @@ class optimization_solver:
         z = self.f(x)
         for i in range(dim):
           d[i] = (self.f(x + h*e) - z)/h
+          e = jnp.roll(e,1)
         x_grad = jnp.array(d)
       else:
         raise ValueError(f"{self.backward_mode} is not implemented.")
@@ -554,9 +555,9 @@ class BacktrackingAcceleratedProximalGD(BacktrackingProximalGD):
       "alpha"
     ]
   
-  def run(self, f, prox, x0, iteration, params, save_path, log_interval=-1):
+  def run(self, f, prox, x0, iteration, params, save_path, log_interval=-1,overwrite_save=True):
     self.tk = params["alpha"]
-    return super().run(f, prox, x0, iteration, params, save_path, log_interval)
+    return super().run(f, prox, x0, iteration, params, save_path, log_interval,overwrite_save)
   
   def __run_init__(self,f, prox,x0,iteration,params):
     self.k = 0

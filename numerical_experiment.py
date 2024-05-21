@@ -8,7 +8,7 @@ def get_objects_from_config(config):
     objectives_config = config["objective"]
     constraints_config = config["constraints"]
 
-    # objectiveを取得
+    # about objective
     objective_name = objectives_config["objective_name"]
     function_properties = {}
     if REGULARIZED in objective_name:
@@ -24,7 +24,7 @@ def get_objects_from_config(config):
       function_properties["dim"] = f.get_dimension()
     
 
-    # solverを取得
+    # about solver
     solver_name = algorithms_config["solver_name"]
     backward_mode = algorithms_config["backward"]
     solver = get_solver(solver_name=solver_name,dtype=DTYPE)
@@ -34,7 +34,7 @@ def get_objects_from_config(config):
     if "dim" in solver_params:
       solver_params["dim"] = f.get_dimension()
           
-    # constraintsを取得
+    # about constraints
     constraints_name = constraints_config["constraints_name"]
     constraints_properties = {}
     if constraints_name != NOCONSTRAINTS:

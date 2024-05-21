@@ -50,17 +50,17 @@ DYNAMIC_BARRIER = "Dynamic"
 PRIMALDUAL = "PrimalDual"
 
 
-# ディレクトリ名の形式 
+# Format of Directories
 # results/{objectives}/{param}@{value}~{param}@{value}~..../{constraints}/{param}@{value}~{param}@{value}~..../{solver_name}/{param}@{value}~{param}@{value}
 
 DISTINCT_PARAM_VALUE = "@"
 DISTINCT_PARAMS = "~"
 
-# 勾配計算の仕方
+# How to calculate Gradient
 DIRECTIONALDERIVATIVE = "DD"
 FINITEDIFFERENCE = "FD"
 
-# スケッチ行列の決め方
+# sketching matrix type
 RANDOM = "random"
 LEESELECTION = "Lee"
 

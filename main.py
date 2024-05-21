@@ -52,7 +52,7 @@ def run_numerical_experiment(config):
 
   os.makedirs(save_path,exist_ok=True)
   logger.info(save_path)
-  # 実験開始
+  
   logger.info("Run Numerical Experiments")
   if constraints_name != NOCONSTRAINTS:
     if use_prox:

@@ -32,7 +32,7 @@
     "dim": 33738,
     "mode": "random",
     "eps": 0.0001,
-    "backward": "DD",
+    "backward": "FD",
     "linesearch": true
   },
   "iteration": 8000,

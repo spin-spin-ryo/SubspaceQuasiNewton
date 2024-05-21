@@ -29,10 +29,10 @@
     "solver_name": "GD",
     "lr": 0.1,
     "eps": 0.0001,
-    "backward": "DD",
+    "backward": "FD",
     "linesearch": true
   },
   "iteration": 30,
   "log_interval": 1,
-  "overwrite_save": false
+  "overwrite_save": true
 }
