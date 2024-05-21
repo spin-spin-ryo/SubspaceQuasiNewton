@@ -144,10 +144,9 @@ class optimization_solver:
       self.save_values[k][iter] = v
   
   def save_results(self,save_path,overwrite_save = True):
-    if overwrite_save:
-      for k,v in self.save_values.items():
-        jnp.save(os.path.join(save_path,k+".npy"),v)
-    else:
+    for k,v in self.save_values.items():
+      jnp.save(os.path.join(save_path,k+".npy"),v)
+    if not overwrite_save:
       if not os.path.exists(os.path.join(save_path,"others")):
         os.makedirs(os.path.join(save_path,"others"))
       for k,v in self.save_values.items():
