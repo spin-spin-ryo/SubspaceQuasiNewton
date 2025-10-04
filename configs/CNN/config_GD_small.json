@@ -1,27 +1,23 @@
 {
   "objective": {
-    "objective_name": "RegularizedMLPNET",
+    "objective_name": "RegularizedCNN",
     "ord": 2,
     "coeff": 0.0001,
     "Fused": false,
     "data_name": "mnist",
     "layers_size": [
-      [
-        784,
-        64,
+  [
+        1,
+        8,
+        3,
         1
       ],
       [
-        64,
-        64,
+        8,
+        8,
+        3,
         1
-      ],
-      [
-        64,
-        10,
-        1
-      ]
-    ],
+      ]],
     "activation": "relu",
     "criterion": "CrossEntropy"
   },
@@ -29,16 +25,13 @@
     "constraints_name": "NoConstraint"
   },
   "algorithms": {
-    "solver_name": "LMN",
-    "reduced_dim": 50,
-    "threshold_eigenvalue": 0.01,
-    "alpha": 0.3,
-    "beta": 0.8,
-    "backward": "FD",
+    "solver_name": "GD",
+    "lr": 0.1,
     "eps": 0.0001,
-    "mode": "Lee"
+    "backward": "FD",
+    "linesearch": true
   },
-  "iteration": 600,
+  "iteration": 30,
   "log_interval": 1,
   "overwrite_save": true
 }

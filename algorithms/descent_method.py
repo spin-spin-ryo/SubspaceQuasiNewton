@@ -62,15 +62,8 @@ class optimization_solver:
   def subspace_first_order_oracle(self,x,Mk):
     reduced_dim = Mk.shape[0]
     if isinstance(self.backward_mode,str):
-      if self.backward_mode == DIRECTIONALDERIVATIVE:
+      if self.backward_mode == DIRECTIONALDERIVATIVE or self.backward_mode == FINITEDIFFERENCE:
         return get_jvp(self.f,x,Mk)
-      elif self.backward_mode == FINITEDIFFERENCE:
-        d = np.zeros(reduced_dim,dtype=self.dtype)
-        h = 1e-8
-        z = self.f(x)
-        for i in range(reduced_dim):
-          d[i] = (self.f(x + h*Mk[i]) - z)/h
-        return jnp.array(d)
     elif self.backward_mode:
       subspace_func = lambda d:self.f(x + Mk.T@d)
       d = jnp.zeros(reduced_dim,dtype=self.dtype)

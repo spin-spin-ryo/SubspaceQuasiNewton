@@ -5,20 +5,18 @@
     "coeff": 0.0001,
     "Fused": false,
     "data_name": "mnist",
-    "layers_size": [
-      [
+    "layers_size":  [[
         1,
-        16,
-        5,
+        8,
+        3,
         1
       ],
       [
-        16,
-        32,
-        5,
+        8,
+        8,
+        3,
         1
-      ]
-    ],
+      ]],
     "activation": "relu",
     "criterion": "CrossEntropy"
   },

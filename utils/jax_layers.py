@@ -2,8 +2,10 @@ import jax.numpy as jnp
 from jax.lax import conv_general_dilated,reshape,transpose
 from flax.linen import avg_pool
 import jax.nn as nn
-from jax import jit,vmap
+from jax import jit,vmap,random
 from operator import getitem
+import math
+
 
 def linear(input,weight,bias = None):
   # input: (data_size, input_size)
@@ -32,3 +34,50 @@ def cross_entropy_loss(logits, labels):
     loss = vmap(getitem)(logits, labels.astype(jnp.int64))
     loss = -loss.mean()
     return loss
+
+
+def init_cnn_params(rng_key, params):
+    """
+    CNNetの初期値ベクトルを生成する。
+    He初期化を使用。
+    
+    params: [X, y, class_num, data_size, layer_config]
+    """
+    _, _, class_num, data_size, layer_config = params
+    used_variables = []
+
+    key = rng_key
+    for (in_ch, out_ch, kernel_size, bias_flag) in layer_config:
+        # He初期化：N(0, sqrt(2/fan_in))
+        fan_in = in_ch * kernel_size * kernel_size
+        std = math.sqrt(2.0 / fan_in)
+        key, subkey_w = random.split(key)
+        W = std * random.normal(subkey_w, (out_ch, in_ch, kernel_size, kernel_size))
+        used_variables.append(W.flatten())
+
+        if bias_flag == 1:
+            key, subkey_b = random.split(key)
+            b = jnp.zeros((out_ch,))  # CNNでは通常0初期化
+            used_variables.append(b.flatten())
+
+        # 出力画像サイズ更新（padding=2, stride=2 pooling前提）
+        data_size = data_size + 4 + 1 - kernel_size
+        data_size //= 2
+
+    # 全結合層
+    dim = data_size * data_size * out_ch
+    fan_in = dim
+    fan_out = class_num
+    std = math.sqrt(2.0 / fan_in)
+    key, subkey_fc_w = random.split(key)
+    W_fc = std * random.normal(subkey_fc_w, (class_num, dim))
+    used_variables.append(W_fc.flatten())
+
+    key, subkey_fc_b = random.split(key)
+    b_fc = jnp.zeros((class_num,))
+    used_variables.append(b_fc.flatten())
+
+    # すべて連結
+    init_vector = jnp.concatenate(used_variables)
+    return init_vector
+

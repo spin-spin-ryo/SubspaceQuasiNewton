@@ -89,7 +89,7 @@ class SubspaceQNM(optimization_solver):
   
   def update_BFGS(self,sk,yk):
     a = sk@yk
-    if a < 1e-14:
+    if a < 0:
       self.Hk = jnp.eye(sk.shape[0],dtype = self.dtype) 
       return 
     B = jnp.dot(jnp.expand_dims(self.Hk@yk,1),jnp.expand_dims(sk,0))

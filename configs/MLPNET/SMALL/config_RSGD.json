@@ -35,7 +35,7 @@
     "dim": 55050,
     "mode": "random",
     "eps": 0.0001,
-    "backward": "DD",
+    "backward": "FD",
     "linesearch": true
   },
   "iteration": 10000,

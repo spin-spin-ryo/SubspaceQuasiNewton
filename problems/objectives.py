@@ -21,7 +21,7 @@ class Objective:
   
   def set_type(self,dtype):
     for i in range(len(self.params)):
-      if isinstance(self.params[i],jaxlib.xla_extension.ArrayImpl):
+      if isinstance(self.params[i],jaxlib._jax.ArrayImpl):
         self.params[i] = self.params[i].astype(dtype)
     return
   
